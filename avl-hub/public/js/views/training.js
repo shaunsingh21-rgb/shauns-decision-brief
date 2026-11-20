@@ -1,5 +1,6 @@
 import { h, clear, field, select, statusBadge } from '../dom.js';
-import { get, post, patch, del } from '../api.js';
+import { get, post, patch, del, upload } from '../api.js';
+import { mmss, parseTime } from '../media.js';
 import { can, toast, errMsg, state } from '../app.js';
 
 const AUTHORS = ['admin', 'trainer'], LEARN = ['admin', 'trainer', 'technician'];
@@ -63,7 +64,7 @@ async function moduleView(root, id) {
       can(...AUTHORS) && ' ', can(...AUTHORS) && h('button', { class: 'danger', 'aria-label': `Remove skill ${s.name}`, onclick: run(() => del(`/skills/${s.skill_id}`)) }, 'Remove')))) : h('p', { class: 'hint' }, 'No skills defined yet.'));
   if (can(...AUTHORS)) p.append(skillForm(id, reload));
 
-  root.append(w, p);
+  root.append(w, p, await videosCard(m, id, reload));
   if (can(...AUTHORS)) root.append(await trainerPanel(m, reload));
   if (can(...AUTHORS)) root.append(h('div', { class: 'card' }, h('h2', {}, 'Review'), h('div', { class: 'row' },
     m.status === 'draft' && h('button', { onclick: run(() => post(`/modules/${id}/submit-review`)) }, 'Submit for review'),
@@ -99,4 +100,70 @@ async function trainerPanel(m, reload) {
         catch (x) { body.append(h('div', { class: 'notice bad', role: 'alert' }, errMsg(x), x.data?.missing ? h('ul', {}, x.data.missing.map(t2 => h('li', {}, t2))) : null)); } } }, 'Sign off this trainee'));
   });
   return h('div', { class: 'card' }, h('h2', {}, 'Trainer: score and sign off'), h('p', { class: 'hint' }, 'You can’t score or sign off yourself.'), field('Trainee', sel), body);
+}
+
+async function videosCard(m, id, reload) {
+  const { videos } = await get(`/modules/${id}/videos`);
+  const card = h('div', { class: 'card' }, h('h2', {}, 'Lesson videos'),
+    h('p', { class: 'hint' }, 'Lesson videos live in SharePoint. Checkpoints on SharePoint and link videos can’t pause the video for you, so answer them as you reach each time. Uploaded videos pause automatically.'));
+  if (!videos.length) card.append(h('p', { class: 'hint' }, 'No lesson videos yet.'));
+  for (const v of videos) card.append(videoBlock(v, reload));
+  if (can(...AUTHORS)) card.append(videoForm(id, reload));
+  return card;
+}
+
+function checkpointUi(c, { onAnswered } = {}) {
+  let choice = null; const out = h('div', { role: 'status', 'aria-live': 'polite' });
+  const prior = c.answered ? h('span', { class: `badge ${c.answered.correct ? 'b-approved' : 'b-needs_review'}` }, c.answered.correct ? 'Answered correctly' : 'Answered — review it') : null;
+  const box = h('fieldset', { class: 'checkpoint' }, h('legend', {}, `Checkpoint at ${mmss(c.at_seconds)}: ${c.prompt}`), prior,
+    c.options.map((o, j) => h('label', { class: 'opt plain' }, h('input', { type: 'radio', name: `cp${c.id}`, onchange: () => choice = j }), o)),
+    h('button', { onclick: async () => {
+      if (choice == null) return toast('Choose an answer.');
+      try { const r = await post(`/checkpoints/${c.id}/answer`, { choice }); out.replaceChildren(h('div', { class: `notice ${r.correct ? 'ok' : 'bad'}` }, r.correct ? 'Correct.' : `Not quite. The answer is: ${c.options[r.correct_index]}.`)); onAnswered?.(r); }
+      catch (x) { toast(errMsg(x)); } } }, 'Check answer'), out);
+  return box;
+}
+
+function videoBlock(v, reload) {
+  const wrap = h('div', { class: 'video-block' }, h('h3', {}, v.title, ' ', h('span', { class: 'badge b-draft' }, { sharepoint_embed: 'SharePoint', upload: 'Uploaded file', link: 'Link' }[v.kind])));
+  let player;
+  if (v.kind === 'sharepoint_embed') player = h('iframe', { class: 'video-frame', src: v.url, title: v.title, allow: 'fullscreen', allowfullscreen: true, referrerpolicy: 'no-referrer', sandbox: 'allow-scripts allow-same-origin allow-presentation allow-popups', loading: 'lazy' });
+  else if (v.kind === 'upload') player = h('video', { class: 'lesson', controls: true, playsinline: true, preload: 'metadata', src: `/api/files/${v.file_id}`, 'aria-label': v.title });
+  else player = h('p', {}, h('a', { class: 'btn', href: v.url }, `Open video (${new URL(v.url).hostname})`));
+  wrap.append(player);
+
+  const pending = new Set(), shown = new Set(); const holder = h('div');
+  const cps = v.checkpoints.map(c => ({ c, ui: checkpointUi(c, { onAnswered: () => { pending.delete(c.id); if (player.play && !player.ended) cont.hidden = false; } }) }));
+  const cont = h('button', { class: 'primary', hidden: true, onclick: () => { cont.hidden = true; player.play(); } }, 'Continue the video');
+  if (v.kind === 'upload' && cps.length) {
+    player.addEventListener('timeupdate', () => {
+      const due = cps.find(({ c }) => !shown.has(c.id) && player.currentTime >= c.at_seconds && player.currentTime < c.at_seconds + 3);
+      if (!due) return; shown.add(due.c.id); pending.add(due.c.id); player.pause();
+      clear(holder).append(due.ui); due.ui.querySelector('input')?.focus(); due.ui.scrollIntoView({ block: 'nearest' });
+    });
+    wrap.append(h('p', { class: 'hint' }, `${cps.length} checkpoint(s): the video pauses at ${cps.map(x => mmss(x.c.at_seconds)).join(', ')}.`), holder, cont);
+  } else if (cps.length) wrap.append(h('h4', {}, 'Checkpoints (answer as you watch)'), ...cps.map(x => x.ui));
+  if (can(...AUTHORS)) wrap.append(h('div', { class: 'row' }, h('button', { class: 'danger', onclick: async () => { if (confirm('Remove this video?')) { try { await del(`/videos/${v.id}`); await reload(); } catch (x) { toast(errMsg(x)); } } } }, 'Remove video'),
+    cpForm(v, reload)), ...v.checkpoints.map(c => h('div', { class: 'hint' }, `${mmss(c.at_seconds)} — ${c.prompt} (answer: ${c.options[c.correct_index]}) `, h('button', { class: 'danger', 'aria-label': `Remove checkpoint at ${mmss(c.at_seconds)}`, onclick: async () => { try { await del(`/checkpoints/${c.id}`); await reload(); } catch (x) { toast(errMsg(x)); } } }, 'Remove'))));
+  return wrap;
+}
+
+function cpForm(v, reload) {
+  const t = h('input', { placeholder: 'm:ss, e.g. 2:30', maxlength: 8 }), q = h('input', { maxlength: 300 }), o = h('textarea', { rows: 3, placeholder: 'One answer per line (2–6)' }), c = h('input', { type: 'number', min: 1, value: 1 });
+  return h('details', {}, h('summary', {}, 'Add a checkpoint'), field('Time in the video', t), field('Question', q), field('Answers', o), field('Number of the correct answer', c),
+    h('button', { onclick: async () => { const s = parseTime(t.value); if (s == null) return toast('Enter the time as m:ss, e.g. 2:30.');
+      try { await post(`/videos/${v.id}/checkpoints`, { at_seconds: s, prompt: q.value, options: o.value.split('\n').map(x => x.trim()).filter(Boolean), correct_index: +c.value - 1 }); await reload(); } catch (x) { toast(errMsg(x)); } } }, 'Add checkpoint'));
+}
+
+function videoForm(id, reload) {
+  const kind = select([['sharepoint_embed', 'SharePoint (recommended)'], ['link', 'Link only'], ['upload', 'Upload a file (small clips only)']], 'sharepoint_embed');
+  const title = h('input', { maxlength: 160 }), url = h('input', { placeholder: 'https://…sharepoint.com/…', maxlength: 2048 }), file = h('input', { type: 'file', accept: 'video/mp4,video/webm', 'aria-label': 'Choose a video file' });
+  const urlBox = field('Link', url, 'For SharePoint, use the video’s Embed link (Share → Embed).'), fileBox = field('Video file (MP4 or WebM)', file, 'Prefer SharePoint: files uploaded here are stored on this server.');
+  const sync = () => { urlBox.hidden = kind.value === 'upload'; fileBox.hidden = kind.value !== 'upload'; }; kind.addEventListener('change', sync); sync();
+  return h('details', {}, h('summary', {}, 'Add a lesson video'), field('Where is the video?', kind), field('Title', title), urlBox, fileBox, h('button', { class: 'primary', onclick: async () => {
+    try {
+      const body = { title: title.value, kind: kind.value };
+      if (kind.value === 'upload') { const f = file.files[0]; if (!f) return toast('Choose a video file.'); body.file_id = (await upload(f, { purpose: 'video' })).id; } else body.url = url.value;
+      await post(`/modules/${id}/videos`, body); toast('Video added.'); await reload();
+    } catch (x) { toast(errMsg(x)); } } }, 'Add video'));
 }

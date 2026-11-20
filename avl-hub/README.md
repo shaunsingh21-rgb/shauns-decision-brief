@@ -17,3 +17,9 @@ All demo content is labelled SAMPLE. Secrets (BRAVE_API_KEY, ANTHROPIC_API_KEY) 
 
 `npm install` also copies the OCR engine into `public/vendor/ocr` (served from our own origin; git-ignored). If that fails, the wizard falls back to typing the label text.
 Brave search and AI drafting need `BRAVE_API_KEY` / `ANTHROPIC_API_KEY` in the server environment; without them those wizard steps show a clear "not configured" message and can be skipped.
+
+## Files and lesson videos (Phase 4)
+Uploaded files live on disk under `UPLOAD_DIR` (default `data/uploads`), never in the database; SQLite keeps metadata only. Type is decided from the file's own bytes.
+Limits (env): `MAX_PHOTO_MB` 10, `MAX_DOC_MB` 20, `MAX_VIDEO_MB` 200. Photos: JPEG/PNG/WebP. Documents: PDF. Videos: MP4/WebM. Downloads need sign-in.
+Lesson videos stay in SharePoint by default. Set `SHAREPOINT_HOSTS=yourtenant.sharepoint.com` to pin embeds (and the CSP) to your tenant; unset allows any `*.sharepoint.com`.
+Back up `data/` (database **and** uploads) together.

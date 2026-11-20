@@ -51,3 +51,16 @@ label.plain,label.nolabel{margin:0;font-weight:400}label.btn{font-weight:700}
 .vh{position:absolute;opacity:0;width:1px;height:1px}
 .preview{max-width:100%;max-height:260px;border-radius:8px}
 label.btn:focus-within{outline:3px solid var(--focus);outline-offset:2px}
+.stage{position:relative;display:block;width:fit-content;max-width:100%;margin:10px auto;touch-action:manipulation}
+.stage img{display:block;max-width:100%;height:auto;border-radius:10px;user-select:none;-webkit-user-drag:none}
+.pin{position:absolute;transform:translate(-50%,-50%);width:44px;height:44px;min-height:44px;min-width:44px;padding:0;border-radius:50%;font-weight:800;border:3px solid #fff;box-shadow:0 0 0 2px #000;z-index:2}
+.pin.active{outline:4px solid var(--focus);animation:none}
+.pin.b-verify{border-style:dashed}
+.cross{position:absolute;transform:translate(-50%,-50%);width:44px;height:44px;border:3px solid var(--focus);border-radius:50%;background:rgba(255,255,255,.35);z-index:3;box-shadow:0 0 0 2px #000}
+.cross::before,.cross::after{content:"";position:absolute;background:var(--focus)}
+.cross::before{left:50%;top:-8px;bottom:-8px;width:2px}.cross::after{top:50%;left:-8px;right:-8px;height:2px}
+.column{display:flex;flex-direction:column;gap:8px}
+.opt-btn.right{background:var(--ok-bg);border-color:var(--ok)}.opt-btn.wrong{background:var(--bad-bg);border-color:var(--bad)}
+button.linkish{border:0;background:none;color:var(--accent);text-decoration:underline;padding:0 4px;min-height:44px}
+.video-frame{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#000}
+video.lesson{width:100%;max-height:70vh;border-radius:10px;background:#000}

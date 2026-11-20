@@ -10,7 +10,7 @@ export const navigate = hash => { if (location.hash === hash) route(); else loca
 export const errMsg = e => (e && e.message) || 'Something went wrong.';
 
 const NAV = [['#/equipment', 'Equipment'], ['#/training', 'Training'], ['#/updates', 'Updates'], ['#/issues', 'Issues & lessons'], ['#/matrix', 'Skill matrix'], ['#/admin', 'Admin', ['admin']]];
-const VIEWS = { equipment: () => import('./views/equipment.js'), wizard: () => import('./views/wizard.js'), training: () => import('./views/training.js'),
+const VIEWS = { equipment: () => import('./views/equipment.js'), wizard: () => import('./views/wizard.js'), panels: () => import('./views/panels.js'), training: () => import('./views/training.js'),
   updates: () => import('./views/updates.js'), issues: () => import('./views/issues.js'), matrix: () => import('./views/matrix.js'), admin: () => import('./views/admin.js') };
 const root = document.getElementById('app');
 
@@ -23,7 +23,7 @@ function shell() {
         h('span', { class: 'row' }, h('span', {}, `${state.user.display_name} · ${ROLE[state.user.role]}`),
           h('button', { onclick: async () => { try { await post('/auth/logout'); } catch {} state.user = null; route(); } }, 'Sign out'))),
       h('nav', { class: 'main', 'aria-label': 'Main' }, NAV.filter(([, , r]) => !r || can(...r)).map(([href, label]) =>
-        h('a', { href, 'aria-current': href === '#/' + cur || (cur === 'wizard' && href === '#/equipment') ? 'page' : null }, label)))),
+        h('a', { href, 'aria-current': href === '#/' + cur || ((cur === 'wizard' || cur === 'panels') && href === '#/equipment') ? 'page' : null }, label)))),
     h('main', { id: 'main', tabindex: '-1' }));
   return root.querySelector('main');
 }

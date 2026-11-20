@@ -1,5 +1,6 @@
 import { h, clear, field, select, provBadge, statusBadge, PROV, fmtDate } from '../dom.js';
-import { get, post, patch, put, del } from '../api.js';
+import { get, post, patch, put, del, upload } from '../api.js';
+import { cleanPhoto, photoPicker } from '../media.js';
 import { can, toast, errMsg, navigate } from '../app.js';
 
 const EDIT = ['admin', 'trainer', 'technician'];
@@ -27,7 +28,7 @@ async function list(root) {
 }
 
 async function detail(root, id) {
-  const [{ equipment: e }, { steps, done }, { updates }, { issues }] = await Promise.all([get(`/equipment/${id}`), get(`/equipment/${id}/install-steps`), get('/updates'), get('/issues')]);
+  const [{ equipment: e }, { steps, done }, { updates }, { issues }, { panels }, { files: docs }] = await Promise.all([get(`/equipment/${id}`), get(`/equipment/${id}/install-steps`), get('/updates'), get('/issues'), get(`/panels?equipment_id=${id}`), get(`/files?equipment_id=${id}&purpose=document`)]);
   const reload = () => { clear(root); return detail(root, id); };
   const act = fn => async () => { try { await fn(); await reload(); } catch (x) { toast(errMsg(x)); } };
 
@@ -55,7 +56,7 @@ async function detail(root, id) {
   const related = h('div', { class: 'card' }, h('h2', {}, 'Related'),
     h('p', {}, `${mine.length} update record(s) · ${theirs.length} issue/lesson(s). `, h('a', { href: '#/updates' }, 'Updates'), ' · ', h('a', { href: '#/issues' }, 'Issues & lessons')));
 
-  root.append(head, specs, approve, installAssistant(id, steps, done, e), related, log,
+  root.append(head, specs, approve, panelsCard(id, panels, reload), docsCard(id, docs, reload), installAssistant(id, steps, done, e), related, log,
     can('admin') && h('p', {}, h('button', { class: 'danger', onclick: async () => { if (confirm('Delete this equipment record?')) { try { await del(`/equipment/${id}`); navigate('#/equipment'); } catch (x) { toast(errMsg(x)); } } } }, 'Delete')));
 }
 
@@ -142,4 +143,21 @@ function stepEditor(card, id, steps, after) {
       try { await put(`/equipment/${id}/install-steps`, { steps: rows.filter(r => r.text.trim()).map(r => ({ text: r.text, provenance: r.provenance, ...(r.source_url ? { source_url: r.source_url } : {}) })) }); toast('Steps saved.'); after(); }
       catch (x) { err.replaceChildren(h('div', { class: 'notice bad' }, errMsg(x))); }
     } }, 'Save steps'), h('button', { onclick: after }, 'Cancel')));
+}
+
+function panelsCard(id, panels, reload) {
+  const title = h('input', { maxlength: 120, placeholder: 'e.g. Rear panel' });
+  const add = can(...EDIT) && h('div', {}, field('Name for a new photo panel', title), photoPicker(async f => {
+    if (!title.value.trim()) { title.focus(); return toast('Give the panel a name first.'); }
+    try { const file = await upload(await cleanPhoto(f), { purpose: 'photo', equipment_id: id }); const { panel } = await post('/panels', { equipment_id: id, title: title.value, file_id: file.id }); location.hash = `#/panels/${panel.id}`; }
+    catch (x) { toast(errMsg(x)); }
+  }, { primary: true }), h('p', { class: 'hint' }, 'Photos are tidied on your device first (location data in the photo is removed).'));
+  return h('div', { class: 'card' }, h('h2', {}, 'Photo panels'), panels.length ? h('ul', {}, panels.map(p => h('li', {}, h('a', { href: `#/panels/${p.id}` }, p.title), ` — ${p.pins} pin(s) `, statusBadge(p.status)))) : h('p', { class: 'hint' }, 'No photo panels yet. A panel is a photo with labelled, sourced pins.'), add);
+}
+
+function docsCard(id, docs, reload) {
+  const pick = h('input', { type: 'file', accept: 'application/pdf', 'aria-label': 'Choose a PDF' });
+  return h('div', { class: 'card' }, h('h2', {}, 'Documents'), docs.length ? h('ul', {}, docs.map(d => h('li', {}, h('a', { href: `/api/files/${d.id}` }, d.name), ` (${Math.max(1, Math.round(d.size / 1024))} KB)`,
+    can('admin', 'trainer') && [' ', h('button', { class: 'danger', 'aria-label': `Delete ${d.name}`, onclick: async () => { if (confirm(`Delete ${d.name}?`)) { try { await del(`/files/${d.id}`); await reload(); } catch (x) { toast(errMsg(x)); } } } }, 'Delete')]))) : h('p', { class: 'hint' }, 'No documents yet (PDF only).'),
+    can(...EDIT) && h('div', { class: 'row' }, pick, h('button', { onclick: async () => { const f = pick.files[0]; if (!f) return toast('Choose a PDF first.'); try { await upload(f, { purpose: 'document', equipment_id: id }); toast('Uploaded.'); await reload(); } catch (x) { toast(errMsg(x)); } } }, 'Upload PDF')));
 }
