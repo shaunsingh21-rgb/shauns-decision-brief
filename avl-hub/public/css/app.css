@@ -64,3 +64,5 @@ label.btn:focus-within{outline:3px solid var(--focus);outline-offset:2px}
 button.linkish{border:0;background:none;color:var(--accent);text-decoration:underline;padding:0 4px;min-height:44px}
 .video-frame{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#000}
 video.lesson{width:100%;max-height:70vh;border-radius:10px;background:#000}
+.syncline{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border-radius:99px;font-size:.85rem;font-weight:700;text-decoration:none;border:1px solid rgba(255,255,255,.6);color:#fff}
+.syncline.s-ok{background:rgba(255,255,255,.14)}.syncline.s-warn{background:#8a5a00}.syncline.s-bad{background:#9b2c1f}

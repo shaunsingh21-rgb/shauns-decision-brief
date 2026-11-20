@@ -2,6 +2,7 @@
 const crypto = require('crypto');
 const { HttpError } = require('../lib/errors');
 const { z, text, id, parse } = require('../lib/validate');
+const { editTime, superseded } = require('../lib/sync');
 
 const AUTHORS = ['admin', 'trainer'];
 const LEARNERS = ['admin', 'trainer', 'technician'];
@@ -62,8 +63,13 @@ module.exports = function trainingRoutes(api, ctx) {
   api.patch('/modules/:id', AUTHORS, async (req, res) => {
     const m = mod(parse(id, req.params.id));
     const b = parse(z.object({ title: text(120, 1).optional(), level: z.number().int().min(1).max(5).optional(), summary: text(2000).optional() }).strict(), req.body);
+    const at = editTime(req);
+    if (superseded(m.edit_at, at)) {
+      db.transaction(() => audit(req, 'sync.superseded', 'module', m.id, { edit_time: at, current_edit_at: m.edit_at }))();
+      return res.json({ applied: false, superseded: true, module: mod(m.id) });
+    }
     db.transaction(() => {
-      db.prepare('UPDATE training_modules SET title=?,level=?,summary=? WHERE id=?').run(b.title ?? m.title, b.level ?? m.level, b.summary ?? m.summary, m.id);
+      db.prepare('UPDATE training_modules SET title=?,level=?,summary=?,edit_at=? WHERE id=?').run(b.title ?? m.title, b.level ?? m.level, b.summary ?? m.summary, at, m.id);
       touch(req, m);
       audit(req, 'module.update', 'module', m.id, { status_change: m.status === 'approved' ? 'approved->needs_review' : undefined });
     })();
@@ -82,6 +88,8 @@ module.exports = function trainingRoutes(api, ctx) {
 
   api.post('/modules/:id/approve', ['admin'], async (req, res) => {
     const m = mod(parse(id, req.params.id));
+    const rv = parse(z.object({ reviewed_version: z.number().int().optional() }).strict(), req.body);
+    if (rv.reviewed_version !== undefined && rv.reviewed_version !== m.version) throw new HttpError(409, 'STALE_REVIEW', 'This material changed after you reviewed it. Review the latest version, then approve again.', { current_version: m.version });
     if (m.status === 'approved') throw new HttpError(409, 'ALREADY_APPROVED', 'Already approved.');
     db.transaction(() => {
       db.prepare("UPDATE training_modules SET status='approved',version=version+1,updated_by=?,updated_at=? WHERE id=?").run(req.user.id, now(), m.id);

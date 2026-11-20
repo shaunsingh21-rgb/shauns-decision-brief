@@ -2,10 +2,11 @@
 const crypto = require('crypto');
 const { HttpError } = require('../lib/errors');
 const { z, text, id, url, PROVENANCE, parse, hostMatches } = require('../lib/validate');
+const { editTime, superseded } = require('../lib/sync');
 
 const EDITORS = ['admin', 'trainer', 'technician'];
 
-const pin = z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), label: text(120).default(''), note: text(1000).default(''),
+const pin = z.object({ id: id.optional(), x: z.number().min(0).max(1), y: z.number().min(0).max(1), label: text(120).default(''), note: text(1000).default(''),
   provenance: z.enum(PROVENANCE), source_url: url.optional() }).strict();
 
 module.exports = function panelRoutes(api, ctx) {
@@ -54,9 +55,10 @@ module.exports = function panelRoutes(api, ctx) {
 
   api.post('/panels/:id/pins', EDITORS, async (req, res) => {
     const p = panel(parse(id, req.params.id)); const b = parse(pin, req.body); checkPin(b);
-    const xid = crypto.randomUUID();
+    if (b.id && db.prepare('SELECT 1 FROM panel_pins WHERE id=?').get(b.id)) throw new HttpError(409, 'ID_EXISTS', 'That id already exists.');
+    const xid = b.id || crypto.randomUUID(), at = editTime(req);
     db.transaction(() => {
-      db.prepare('INSERT INTO panel_pins VALUES (?,?,?,?,?,?,?,?,?,?)').run(xid, p.id, b.x, b.y, b.label, b.note, b.provenance, b.source_url || null, req.user.id, now());
+      db.prepare('INSERT INTO panel_pins (id,panel_id,x,y,label,note,provenance,source_url,created_by,created_at,edit_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)').run(xid, p.id, b.x, b.y, b.label, b.note, b.provenance, b.source_url || null, req.user.id, now(), at);
       touch(req, p.id); audit(req, 'pin.add', 'panel', p.id, { pin_id: xid, provenance: b.provenance });
     })();
     res.status(201).json({ panel: full(p.id) });
@@ -65,8 +67,13 @@ module.exports = function panelRoutes(api, ctx) {
     const cur = db.prepare('SELECT * FROM panel_pins WHERE id=?').get(parse(id, req.params.id));
     if (!cur) throw new HttpError(404, 'NOT_FOUND', 'Pin not found.');
     const b = parse(pin, req.body); checkPin(b);
+    const at = editTime(req);
+    if (superseded(cur.edit_at, at)) {
+      db.transaction(() => audit(req, 'sync.superseded', 'panel', cur.panel_id, { pin_id: cur.id, edit_time: at, current_edit_at: cur.edit_at }))();
+      return res.json({ applied: false, superseded: true, panel: full(cur.panel_id) });
+    }
     db.transaction(() => {
-      db.prepare('UPDATE panel_pins SET x=?,y=?,label=?,note=?,provenance=?,source_url=? WHERE id=?').run(b.x, b.y, b.label, b.note, b.provenance, b.source_url || null, cur.id);
+      db.prepare('UPDATE panel_pins SET x=?,y=?,label=?,note=?,provenance=?,source_url=?,edit_at=? WHERE id=?').run(b.x, b.y, b.label, b.note, b.provenance, b.source_url || null, at, cur.id);
       touch(req, cur.panel_id); audit(req, 'pin.update', 'panel', cur.panel_id, { pin_id: cur.id, provenance: b.provenance });
     })();
     res.json({ panel: full(cur.panel_id) });
@@ -86,7 +93,8 @@ module.exports = function panelRoutes(api, ctx) {
   });
   api.post('/panels/:id/approve', ['admin'], async (req, res) => {
     const p = panel(parse(id, req.params.id));
-    const b = parse(z.object({ override: z.boolean().default(false), override_reason: text(500).optional() }).strict(), req.body);
+    const b = parse(z.object({ override: z.boolean().default(false), override_reason: text(500).optional(), reviewed_version: z.number().int().optional() }).strict(), req.body);
+    if (b.reviewed_version !== undefined && b.reviewed_version !== p.version) throw new HttpError(409, 'STALE_REVIEW', 'This panel changed after you reviewed it. Review the latest version, then approve again.', { current_version: p.version });
     if (p.status === 'approved') throw new HttpError(409, 'ALREADY_APPROVED', 'Already approved.');
     const verify = db.prepare("SELECT COUNT(*) n FROM panel_pins WHERE panel_id=? AND provenance='verify'").get(p.id).n;
     if (verify && !b.override) throw new HttpError(409, 'VERIFY_ITEMS_REMAIN', 'This panel still has VERIFY pins. Resolve them, or approve with an explicit override and a reason.', { verify_count: verify });

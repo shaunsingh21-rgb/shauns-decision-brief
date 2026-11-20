@@ -1,7 +1,7 @@
 import { h, clear, field, select, provBadge, statusBadge, PROV, fmtDate } from '../dom.js';
-import { get, post, patch, put, del, upload } from '../api.js';
+import { get, post, put, del, upload, mutate } from '../api.js';
 import { cleanPhoto, photoPicker } from '../media.js';
-import { can, toast, errMsg, navigate } from '../app.js';
+import { can, toast, errMsg, navigate, noteQueued } from '../app.js';
 
 const EDIT = ['admin', 'trainer', 'technician'];
 
@@ -28,9 +28,11 @@ async function list(root) {
 }
 
 async function detail(root, id) {
-  const [{ equipment: e }, { steps, done }, { updates }, { issues }, { panels }, { files: docs }] = await Promise.all([get(`/equipment/${id}`), get(`/equipment/${id}/install-steps`), get('/updates'), get('/issues'), get(`/panels?equipment_id=${id}`), get(`/files?equipment_id=${id}&purpose=document`)]);
+  // The record itself must load. Everything around it degrades gracefully if it is not saved on this device yet.
+  const soft = (p, d) => get(p).catch(x => (x && x.code === 'OFFLINE' ? d : Promise.reject(x)));
+  const [{ equipment: e }, { steps, done }, { updates }, { issues }, { panels }, { files: docs }] = await Promise.all([get(`/equipment/${id}`), soft(`/equipment/${id}/install-steps`, { steps: [], done: [] }), soft('/updates', { updates: [] }), soft('/issues', { issues: [] }), soft(`/panels?equipment_id=${id}`, { panels: [] }), soft(`/files?equipment_id=${id}&purpose=document`, { files: [] })]);
   const reload = () => { clear(root); return detail(root, id); };
-  const act = fn => async () => { try { await fn(); await reload(); } catch (x) { toast(errMsg(x)); } };
+  const act = fn => async () => { try { noteQueued(await fn()); await reload(); } catch (x) { toast(errMsg(x)); } };
 
   const head = h('div', {}, h('p', {}, h('a', { href: '#/equipment' }, '← All equipment')), h('h1', {}, e.name),
     h('div', { class: 'row' }, statusBadge(e.status), h('span', { class: 'hint' }, [e.manufacturer, e.category].filter(Boolean).join(' · '))),
@@ -44,7 +46,7 @@ async function detail(root, id) {
         h('td', {}, provBadge(f.provenance), ' ', f.source_url && h('a', { href: f.source_url }, new URL(f.source_url).hostname)))))))
       : h('p', { class: 'hint' }, 'No specifications recorded.'),
     h('div', { class: 'row' }, can(...EDIT) && h('button', { onclick: () => editor(root, e, reload) }, 'Edit'),
-      can(...EDIT) && e.status !== 'approved' && e.status !== 'needs_review' && h('button', { onclick: act(() => post(`/equipment/${id}/submit-review`)) }, 'Submit for review'),
+      can(...EDIT) && e.status !== 'approved' && e.status !== 'needs_review' && h('button', { onclick: act(() => mutate('POST', `/equipment/${id}/submit-review`, {}, { label: `Submit “${e.name}” for review` })) }, 'Submit for review'),
       can(...EDIT) && e.status === 'draft' && null));
 
   const approve = can('admin') && e.status !== 'approved' && approvalPanel(e, id, reload);
@@ -63,7 +65,7 @@ async function detail(root, id) {
 function approvalPanel(e, id, reload) {
   const reason = h('input', { type: 'text', maxlength: 500 });
   const run = async over => {
-    try { await post(`/equipment/${id}/approve`, over ? { override: true, override_reason: reason.value } : {}); toast('Approved.'); await reload(); }
+    try { const r = await mutate('POST', `/equipment/${id}/approve`, { ...(over ? { override: true, override_reason: reason.value } : {}), reviewed_version: e.version }, { label: `Approve “${e.name}”` }); if (!noteQueued(r)) toast('Approved.'); await reload(); }
     catch (x) { toast(errMsg(x)); }
   };
   if (!e.verify_keys.length) return h('div', { class: 'card' }, h('button', { class: 'primary', onclick: () => run(false) }, 'Approve'));
@@ -99,9 +101,9 @@ function editor(root, e, reload) {
     } }, 'Add as VERIFY')), err,
     h('div', { class: 'row' }, h('button', { class: 'primary', onclick: async () => {
       try {
-        await patch(`/equipment/${e.id}`, { name: name.value, manufacturer: mf.value, category: cat.value, remove_fields: removed.filter(k => !rows.some(r => r.key === k)),
-          fields: rows.map(r => ({ key: r.key, provenance: r.provenance, value: r.provenance === 'verify' ? '' : r.value, ...(r.source_url ? { source_url: r.source_url } : {}) })) });
-        toast('Saved.'); await reload();
+        const r = await mutate('PATCH', `/equipment/${e.id}`, { name: name.value, manufacturer: mf.value, category: cat.value, remove_fields: removed.filter(k => !rows.some(r => r.key === k)),
+          fields: rows.map(r => ({ key: r.key, provenance: r.provenance, value: r.provenance === 'verify' ? '' : r.value, ...(r.source_url ? { source_url: r.source_url } : {}) })) }, { label: `Edit “${e.name}”` });
+        if (!noteQueued(r)) toast('Saved.'); await reload();
       } catch (x) { err.replaceChildren(h('div', { class: 'notice bad' }, errMsg(x), x.data?.details ? ' ' + x.data.details.map(d => d.message).join('; ') : '')); }
     } }, 'Save'), h('button', { onclick: reload }, 'Cancel')));
 }
@@ -118,7 +120,7 @@ function installAssistant(id, steps, done, e) {
         h('input', { type: 'checkbox', id: `st${i}`, checked: doneSet.has(s.id), disabled: !can(...EDIT), onchange: async ev => {
           ev.target.checked ? doneSet.add(s.id) : doneSet.delete(s.id);
           count.textContent = tally();
-          try { await put(`/equipment/${id}/install-progress`, { done: [...doneSet] }); } catch (x) { toast(errMsg(x)); }
+          try { noteQueued(await mutate('PUT', `/equipment/${id}/install-progress`, { done: [...doneSet] }, { label: `Installation checklist for “${e.name}”` })); } catch (x) { toast(errMsg(x)); }
         } }),
         h('label', { for: `st${i}`, class: 'plain' }, `${i + 1}. ${s.text} `, provBadge(s.provenance), ' ', s.source_url && h('a', { href: s.source_url }, 'source')))))
         : h('p', { class: 'hint' }, 'No installation steps yet. Add them from the manufacturer manual or your team’s own procedure.'),

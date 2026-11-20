@@ -1,7 +1,7 @@
 import { h, clear, field, select, statusBadge } from '../dom.js';
-import { get, post, patch, del, upload } from '../api.js';
+import { get, post, del, upload, mutate } from '../api.js';
 import { mmss, parseTime } from '../media.js';
-import { can, toast, errMsg, state } from '../app.js';
+import { can, toast, errMsg, state, noteQueued } from '../app.js';
 
 const AUTHORS = ['admin', 'trainer'], LEARN = ['admin', 'trainer', 'technician'];
 const RUBRIC = [[0, '0 — Not demonstrated'], [1, '1 — Needs coaching'], [2, '2 — Competent, minimal help'], [3, '3 — Independent']];
@@ -34,7 +34,7 @@ function newModule(root) {
 async function moduleView(root, id) {
   const { module: m } = await get(`/modules/${id}`);
   const reload = () => { clear(root); return moduleView(root, id); };
-  const run = fn => async () => { try { await fn(); await reload(); } catch (x) { toast(errMsg(x)); } };
+  const run = fn => async () => { try { noteQueued(await fn()); await reload(); } catch (x) { toast(errMsg(x)); } };
   const { progress } = await get(`/progress/${state.user.id}`);
   const me = progress.find(p => p.module_id === id);
 
@@ -51,7 +51,8 @@ async function moduleView(root, id) {
       ...m.quiz.map((q, i) => h('fieldset', {}, h('legend', {}, `${i + 1}. ${q.prompt}`), q.options.map((o, j) => h('label', { class: 'opt plain' },
         h('input', { type: 'radio', name: q.id, onchange: () => picks[q.id] = j }), o)))),
       h('button', { class: 'primary', onclick: async () => {
-        try { const r = await post(`/modules/${id}/quiz-attempts`, { answers: picks });
+        try { const r = await mutate('POST', `/modules/${id}/quiz-attempts`, { answers: picks }, { label: `Quiz answers for “${m.title}”` });
+          if (r.queued) return clear(result).append(h('div', { class: 'notice' }, 'Your answers are saved on this device. They are graded when you’re back online, and your score will show here then.'));
           clear(result).append(h('div', { class: `notice ${r.passed ? 'ok' : 'bad'}` }, `${r.correct} of ${r.total} correct — ${r.score_pct}%. ${r.passed ? 'Passed.' : `You need ${r.pass_pct}% to pass. You can try again.`}`)); }
         catch (x) { toast(errMsg(x)); } } }, 'Submit answers'), result);
   } else w.append(h('p', { class: 'hint' }, `${m.quiz.length} question(s). Viewers can’t take quizzes.`));
@@ -67,8 +68,8 @@ async function moduleView(root, id) {
   root.append(w, p, await videosCard(m, id, reload));
   if (can(...AUTHORS)) root.append(await trainerPanel(m, reload));
   if (can(...AUTHORS)) root.append(h('div', { class: 'card' }, h('h2', {}, 'Review'), h('div', { class: 'row' },
-    m.status === 'draft' && h('button', { onclick: run(() => post(`/modules/${id}/submit-review`)) }, 'Submit for review'),
-    can('admin') && m.status !== 'approved' && h('button', { class: 'primary', onclick: run(() => post(`/modules/${id}/approve`)) }, 'Approve material'))));
+    m.status === 'draft' && h('button', { onclick: run(() => mutate('POST', `/modules/${id}/submit-review`, {}, { label: `Submit “${m.title}” for review` })) }, 'Submit for review'),
+    can('admin') && m.status !== 'approved' && h('button', { class: 'primary', onclick: run(() => mutate('POST', `/modules/${id}/approve`, { reviewed_version: m.version }, { label: `Approve “${m.title}”` })) }, 'Approve material'))));
 }
 
 function questionForm(id, reload) {
@@ -94,9 +95,9 @@ async function trainerPanel(m, reload) {
     body.append(h('p', {}, `Written: ${t.written.best_pct ?? 'not taken'}${t.written.best_pct != null ? '%' : ''} ${t.written.passed ? '✓' : ''}`),
       ...t.practical.skills.map(s => { const sc = select(RUBRIC, s.score ?? 0); scoreSel[s.skill_id] = sc; sc.setAttribute('aria-label', `Score for ${s.name}`);
         return h('div', { class: 'row' }, h('span', { class: 'grow' }, `${s.name} (now: ${s.score ?? 'unscored'})`), sc,
-          h('button', { onclick: async () => { try { await post('/practical-scores', { trainee_id: sel.value, skill_id: s.skill_id, score: +sc.value }); toast('Score saved.'); sel.dispatchEvent(new Event('change')); } catch (x) { toast(errMsg(x)); } } }, 'Save score')); }),
+          h('button', { onclick: async () => { try { const r = await mutate('POST', '/practical-scores', { trainee_id: sel.value, skill_id: s.skill_id, score: +sc.value }, { label: `Score “${s.name}”` }); if (!noteQueued(r)) toast('Score saved.'); sel.dispatchEvent(new Event('change')); } catch (x) { toast(errMsg(x)); } } }, 'Save score')); }),
       t.signed_off ? h('div', { class: 'notice ok' }, 'Signed off.') : h('button', { class: 'primary', onclick: async () => {
-        try { await post('/signoffs', { trainee_id: sel.value, module_id: m.id }); toast('Signed off.'); await reload(); }
+        try { const r = await mutate('POST', '/signoffs', { trainee_id: sel.value, module_id: m.id }, { label: `Sign off on “${m.title}”` }); if (!noteQueued(r)) toast('Signed off.'); await reload(); }
         catch (x) { body.append(h('div', { class: 'notice bad', role: 'alert' }, errMsg(x), x.data?.missing ? h('ul', {}, x.data.missing.map(t2 => h('li', {}, t2))) : null)); } } }, 'Sign off this trainee'));
   });
   return h('div', { class: 'card' }, h('h2', {}, 'Trainer: score and sign off'), h('p', { class: 'hint' }, 'You can’t score or sign off yourself.'), field('Trainee', sel), body);
@@ -119,7 +120,7 @@ function checkpointUi(c, { onAnswered } = {}) {
     c.options.map((o, j) => h('label', { class: 'opt plain' }, h('input', { type: 'radio', name: `cp${c.id}`, onchange: () => choice = j }), o)),
     h('button', { onclick: async () => {
       if (choice == null) return toast('Choose an answer.');
-      try { const r = await post(`/checkpoints/${c.id}/answer`, { choice }); out.replaceChildren(h('div', { class: `notice ${r.correct ? 'ok' : 'bad'}` }, r.correct ? 'Correct.' : `Not quite. The answer is: ${c.options[r.correct_index]}.`)); onAnswered?.(r); }
+      try { const r = await mutate('POST', `/checkpoints/${c.id}/answer`, { choice }, { label: 'Video checkpoint answer' }); if (r.queued) return out.replaceChildren(h('div', { class: 'notice' }, 'Answer saved on this device. Feedback appears once you’re back online.')); out.replaceChildren(h('div', { class: `notice ${r.correct ? 'ok' : 'bad'}` }, r.correct ? 'Correct.' : `Not quite. The answer is: ${c.options[r.correct_index]}.`)); onAnswered?.(r); }
       catch (x) { toast(errMsg(x)); } } }, 'Check answer'), out);
   return box;
 }

@@ -23,3 +23,13 @@ Uploaded files live on disk under `UPLOAD_DIR` (default `data/uploads`), never i
 Limits (env): `MAX_PHOTO_MB` 10, `MAX_DOC_MB` 20, `MAX_VIDEO_MB` 200. Photos: JPEG/PNG/WebP. Documents: PDF. Videos: MP4/WebM. Downloads need sign-in.
 Lesson videos stay in SharePoint by default. Set `SHAREPOINT_HOSTS=yourtenant.sharepoint.com` to pin embeds (and the CSP) to your tenant; unset allows any `*.sharepoint.com`.
 Back up `data/` (database **and** uploads) together.
+
+## Offline and sync (Phase 5)
+Install: iPhone Safari → Share → Add to Home Screen; Mac Safari → File → Add to Dock; Chrome/Edge → Install. HTTPS is required (localhost is exempt for testing).
+The service worker (`/sw.js`, generated at start-up from the real files) caches the app shell. Data you have viewed is kept in this browser's IndexedDB and refreshed in the background.
+Changes made offline wait in a queue and sync in order. Status is always visible: "All changes saved" / "N changes waiting to sync" / "Offline — showing saved data".
+- Conflicts: last-writer-wins **per record**, decided by when the edit was *made* (device clock corrected to the server's), clamped so a wrong clock can't win. The overridden edit is reported to the person and audited.
+- Sign-offs, approvals, quiz attempts, scores: append-only events, attributed by the server to the signed-in user; refused ones stay visible under Sync ("needs attention").
+- Approvals apply to the version reviewed; if the record changed since, the server refuses (`STALE_REVIEW`).
+- Needs a connection: uploads, research, AI drafting, admin actions. Quizzes are graded when you reconnect.
+- Offline data lives on the device. Signing out clears it (and warns if changes haven't synced).

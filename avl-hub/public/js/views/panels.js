@@ -1,6 +1,6 @@
 import { h, clear, field, select, provBadge, statusBadge, PROV } from '../dom.js';
-import { get, post, patch, del } from '../api.js';
-import { can, toast, errMsg, navigate } from '../app.js';
+import { get, post, del, mutate } from '../api.js';
+import { can, toast, errMsg, navigate, noteQueued } from '../app.js';
 
 const EDIT = ['admin', 'trainer', 'technician'];
 const pct = v => Math.round(v * 100);
@@ -69,7 +69,7 @@ export async function render(root, { arg }) {
     return h('form', { class: 'card', onsubmit: async e => {
       e.preventDefault(); err.replaceChildren();
       const body = { x: d.x, y: d.y, label: d.provenance === 'verify' ? '' : d.label, note: d.note, provenance: d.provenance, ...(d.source_url ? { source_url: d.source_url } : {}) };
-      try { d.id ? await patch(`/pins/${d.id}`, body) : await post(`/panels/${panel.id}/pins`, body); toast('Pin saved.'); await reload(); }
+      try { const r = d.id ? await mutate('PATCH', `/pins/${d.id}`, body, { label: `Edit a pin on “${panel.title}”` }) : await mutate('POST', `/panels/${panel.id}/pins`, { id: crypto.randomUUID(), ...body }, { label: `Add a pin to “${panel.title}”` }); if (!noteQueued(r)) toast('Pin saved.'); await reload(); }
       catch (x) { err.replaceChildren(h('div', { class: 'notice bad' }, errMsg(x))); }
     } }, h('h2', {}, d.id ? 'Edit pin' : 'New pin'), field('What is it? (label)', label, d.provenance === 'verify' ? 'Marked VERIFY: not identified yet, so no label.' : 'Use the manufacturer’s name for it.'),
       field('Where this came from', prov), field('Source URL (required for Manufacturer)', src), field('Note (optional)', note),
@@ -84,19 +84,19 @@ export async function render(root, { arg }) {
       p.provenance === 'verify' && h('div', { class: 'notice' }, 'Not identified yet. Do not rely on this pin.'), p.provenance === 'ai' && h('div', { class: 'notice ai' }, 'AI-drafted. Check it against a source.'),
       p.note && h('p', {}, p.note), p.source_url && h('p', {}, 'Source: ', h('a', { href: p.source_url }, new URL(p.source_url).hostname)),
       can(...EDIT) && h('div', { class: 'row' }, h('button', { onclick: () => { state.draft = { ...p, source_url: p.source_url || '' }; state.mode = 'form'; draw(); } }, 'Edit'),
-        h('button', { onclick: () => startPlace(p) }, 'Move'), h('button', { class: 'danger', onclick: async () => { try { await del(`/pins/${p.id}`); state.selected = null; await reload(); } catch (x) { toast(errMsg(x)); } } }, 'Delete pin')));
+        h('button', { onclick: () => startPlace(p) }, 'Move'), h('button', { class: 'danger', onclick: async () => { try { noteQueued(await mutate('DELETE', `/pins/${p.id}`, undefined, { label: `Delete a pin on “${panel.title}”` })); state.selected = null; await reload(); } catch (x) { toast(errMsg(x)); } } }, 'Delete pin')));
   };
   const pinList = () => h('div', { class: 'card' }, h('h2', {}, 'All pins'), panel.pins.length ? h('ol', {}, panel.pins.map((p, i) => h('li', {}, h('button', { class: 'linkish', onclick: () => { state.selected = p.id; draw(); } }, p.label || 'Not identified'), ' ', provBadge(p.provenance)))) : h('p', { class: 'hint' }, 'None yet.'));
 
-  const run = fn => async () => { try { await fn(); await reload(); } catch (x) { toast(errMsg(x)); } };
+  const run = fn => async () => { try { noteQueued(await fn()); await reload(); } catch (x) { toast(errMsg(x)); } };
   const reason = h('input', { maxlength: 500 });
   const actions = () => h('div', { class: 'card' }, h('div', { class: 'row' },
     can(...EDIT) && h('button', { class: 'primary', onclick: () => startPlace(null) }, 'Add a pin'),
     h('button', { onclick: () => { quiz.start(); } }, 'Quiz me'),
-    can(...EDIT) && panel.status === 'draft' && h('button', { onclick: run(() => post(`/panels/${panel.id}/submit-review`)) }, 'Submit for review'),
-    can('admin') && panel.status !== 'approved' && !panel.verify_count && h('button', { class: 'primary', onclick: run(() => post(`/panels/${panel.id}/approve`, {})) }, 'Approve')),
+    can(...EDIT) && panel.status === 'draft' && h('button', { onclick: run(() => mutate('POST', `/panels/${panel.id}/submit-review`, {}, { label: `Submit “${panel.title}” for review` })) }, 'Submit for review'),
+    can('admin') && panel.status !== 'approved' && !panel.verify_count && h('button', { class: 'primary', onclick: run(() => mutate('POST', `/panels/${panel.id}/approve`, { reviewed_version: panel.version }, { label: `Approve “${panel.title}”` })) }, 'Approve')),
     can('admin') && panel.status !== 'approved' && panel.verify_count > 0 && h('div', {}, h('div', { class: 'notice' }, `${panel.verify_count} pin(s) are still VERIFY. Resolve them, or approve with an explicit override.`),
-      field('Override reason (required)', reason), h('button', { class: 'danger', onclick: run(() => post(`/panels/${panel.id}/approve`, { override: true, override_reason: reason.value })) }, 'Approve anyway (override)')),
+      field('Override reason (required)', reason), h('button', { class: 'danger', onclick: run(() => mutate('POST', `/panels/${panel.id}/approve`, { override: true, override_reason: reason.value, reviewed_version: panel.version }, { label: `Approve “${panel.title}” (override)` })) }, 'Approve anyway (override)')),
     can('admin') && h('p', {}, h('button', { class: 'danger', onclick: async () => { if (confirm('Delete this panel?')) { try { await del(`/panels/${panel.id}`); navigate(`#/equipment/${panel.equipment_id}`); } catch (x) { toast(errMsg(x)); } } } }, 'Delete panel')));
 
   // ---- Quiz me: pins from Manufacturer or Team only (never AI or VERIFY); the answer reveals its source ----

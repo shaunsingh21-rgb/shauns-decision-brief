@@ -21,9 +21,9 @@ async function harness(overrides = {}) {
   function client() {
     let cookie = '';
     const c = {
-      async req(method, p, body, { csrf = true } = {}) {
+      async req(method, p, body, { csrf = true, headers: extra = {} } = {}) {
         const res = await fetch(base + p, { method, redirect: 'manual',
-          headers: { ...(body !== undefined ? { 'content-type': 'application/json' } : {}), ...(csrf ? { 'x-requested-by': 'avl-hub' } : {}), ...(cookie ? { cookie } : {}) },
+          headers: { ...(body !== undefined ? { 'content-type': 'application/json' } : {}), ...(csrf ? { 'x-requested-by': 'avl-hub' } : {}), ...(cookie ? { cookie } : {}), ...extra },
           body: body !== undefined ? JSON.stringify(body) : undefined });
         const sc = res.headers.getSetCookie?.() || [];
         for (const s of sc) { const [kv] = s.split(';'); if (/=;?$/.test(kv) || /Expires=Thu, 01 Jan 1970/i.test(s)) cookie = ''; else cookie = kv; }

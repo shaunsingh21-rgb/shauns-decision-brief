@@ -1,6 +1,6 @@
 import { h, clear, field, select, provBadge, PROV } from '../dom.js';
-import { get, post } from '../api.js';
-import { toast, errMsg, navigate } from '../app.js';
+import { get, post, mutate } from '../api.js';
+import { toast, errMsg, navigate, noteQueued } from '../app.js';
 
 const STEPS = ['Photo', 'Confirm', 'Research', 'Review'];
 const SUGGESTED = ['power', 'inputs', 'outputs', 'connectivity', 'dimensions', 'firmware_version'];   // start as VERIFY — never guessed
@@ -132,9 +132,10 @@ function stepReview(w, draw) {
     try {
       const body = { name: w.name, manufacturer: w.manufacturer || undefined, category: w.category || undefined,
         fields: w.fields.filter(f => f.provenance === 'verify' || f.value.trim()).map(f => ({ key: f.key, provenance: f.provenance, value: f.provenance === 'verify' ? '' : f.value.trim(), ...(f.source_url ? { source_url: f.source_url } : {}) })) };
-      const { equipment } = await post('/equipment', body);
-      if (submit) await post(`/equipment/${equipment.id}/submit-review`);
-      toast(submit ? 'Saved and submitted for review.' : 'Saved as a draft.'); navigate(`#/equipment/${equipment.id}`);
+      const eid = crypto.randomUUID();                               // chosen here so it works offline too
+      const first = await mutate('POST', '/equipment', { id: eid, ...body }, { label: `Add “${w.name}”` });
+      const second = submit ? await mutate('POST', `/equipment/${eid}/submit-review`, {}, { label: `Submit “${w.name}” for review` }) : null;
+      if (!noteQueued(first) && !noteQueued(second)) toast(submit ? 'Saved and submitted for review.' : 'Saved as a draft.'); navigate(`#/equipment/${eid}`);
     } catch (x) { err.replaceChildren(h('div', { class: 'notice bad' }, errMsg(x), x.data?.details ? ' ' + x.data.details.map(d => d.message).join('; ') : '')); }
   };
   return h('div', {}, h('h2', {}, w.name), h('div', { class: 'notice' }, 'Anything left as VERIFY is saved as “not confirmed”. Nothing is filled in by guessing.'),

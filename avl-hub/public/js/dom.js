@@ -1,4 +1,9 @@
 // Safe DOM builder. Text is ALWAYS inserted as text nodes (never innerHTML), so API data cannot inject markup.
+// Native append() prints `false` and `[object HTMLDivElement]` for empty values and arrays. Everything in this app builds DOM from
+// expressions like `cond && h(...)` and `items.map(...)`, so append() is made to skip empties and flatten arrays, like h() does.
+const nativeAppend = Element.prototype.append;
+Element.prototype.append = function (...kids) { return nativeAppend.apply(this, kids.flat(Infinity).filter(k => k != null && k !== false && k !== true)); };
+
 const SAFE_URL = /^(#|\/(?!\/)|https:\/\/)/i;
 export function h(tag, props, ...kids) {
   const el = document.createElement(tag);

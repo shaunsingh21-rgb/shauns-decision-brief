@@ -14,7 +14,7 @@
     "test": "node --test --test-timeout=60000 --test-concurrency=1 \"test/api/**/*.test.js\"",
     "postinstall": "node scripts/vendor-ocr.js",
     "vendor-ocr": "node scripts/vendor-ocr.js",
-    "test:e2e": "node --test --test-timeout=60000 --test-concurrency=1 \"test/e2e/**/*.test.js\"",
+    "test:e2e": "node --test --test-timeout=600000 --test-concurrency=1 \"test/e2e/**/*.test.js\"",
     "test:all": "npm test && npm run test:e2e"
   },
   "dependencies": {

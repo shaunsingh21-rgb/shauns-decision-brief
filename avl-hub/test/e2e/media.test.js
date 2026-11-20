@@ -55,7 +55,7 @@ test('photo panel: camera capture input, EXIF stripped, keyboard-only pin placem
   await cross.waitFor(); assert.ok(await cross.evaluate(e => e === document.activeElement), 'marker takes focus');
   for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
   for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowDown');
-  assert.match(await page.getByRole('status').first().textContent(), /60 percent across, 56 percent down/, 'position is announced to screen readers');
+  assert.match(await page.locator('.vh[role=status]').textContent(), /60 percent across, 56 percent down/, 'position is announced to screen readers');
   await page.keyboard.press('Enter');
   await page.getByRole('heading', { name: 'New pin' }).waitFor();
   assert.equal(await page.getByLabel('Across (%)').inputValue(), '60'); assert.equal(await page.getByLabel('Down (%)').inputValue(), '56');
