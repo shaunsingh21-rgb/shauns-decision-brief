@@ -1,11 +1,12 @@
-import { h, clear, ROLE } from './dom.js';
+import { h, clear } from './dom.js';
 import { get, post, setUser, warmCache } from './api.js';
 import { request } from './http.js';
 import * as store from './store.js';
 import * as sync from './sync.js';
 
 export const state = { user: null, offlineStart: false };
-export const can = (...roles) => !!state.user && roles.includes(state.user.role);
+// True if the signed-in person's role holds ANY of these permissions. This only decides what to offer; the server re-checks every action.
+export const can = (...perms) => !!state.user && perms.some(p => (state.user.permissions || []).includes(p));
 export function toast(msg) {
   const t = h('div', { class: 'toast' }, msg); document.getElementById('toasts').append(t); setTimeout(() => t.remove(), 6000);
 }
@@ -15,9 +16,9 @@ export const errMsg = e => (e && e.message) || 'Something went wrong.';
 // Returns true when the change was queued (so callers can skip their normal "Saved." message).
 export const noteQueued = r => { if (r && r.queued) { toast('Saved on this device. It will sync when you’re back online.'); return true; } return false; };
 
-const NAV = [['#/equipment', 'Equipment'], ['#/training', 'Training'], ['#/updates', 'Updates'], ['#/issues', 'Issues & lessons'], ['#/matrix', 'Skill matrix'], ['#/admin', 'Admin', ['admin']]];
+const NAV = [['#/equipment', 'Equipment'], ['#/training', 'Training'], ['#/updates', 'Updates'], ['#/issues', 'Issues & lessons'], ['#/matrix', 'Skill matrix'], ['#/admin', 'Admin', ['users.manage', 'roles.manage', 'sources.manage', 'audit.view', 'data.manage']]];
 const VIEWS = { equipment: () => import('./views/equipment.js'), wizard: () => import('./views/wizard.js'), panels: () => import('./views/panels.js'), training: () => import('./views/training.js'),
-  updates: () => import('./views/updates.js'), issues: () => import('./views/issues.js'), matrix: () => import('./views/matrix.js'), admin: () => import('./views/admin.js'), sync: () => import('./views/sync.js') };
+  updates: () => import('./views/updates.js'), issues: () => import('./views/issues.js'), matrix: () => import('./views/matrix.js'), admin: () => import('./views/admin.js'), sync: () => import('./views/sync.js'), account: () => import('./views/account.js') };
 const root = document.getElementById('app');
 let unsubStatus = null;
 
@@ -41,7 +42,7 @@ function shell() {
     h('header', { class: 'top' },
       h('div', { class: 'row' },
         h('span', { class: 'brand' }, 'AVL Tech Hub'),
-        h('span', { class: 'row' }, syncLine(), h('span', {}, `${state.user.display_name} · ${ROLE[state.user.role]}`), h('button', { onclick: signOut }, 'Sign out'))),
+        h('span', { class: 'row' }, syncLine(), h('a', { href: '#/account', class: 'userlink', 'aria-label': `My account: ${state.user.display_name}, ${state.user.role_name}`, 'aria-current': location.hash.startsWith('#/account') ? 'page' : null }, `${state.user.display_name} · ${state.user.role_name}`), h('button', { onclick: signOut }, 'Sign out'))),
       h('nav', { class: 'main', 'aria-label': 'Main' }, NAV.filter(([, , r]) => !r || can(...r)).map(([href, label]) =>
         h('a', { href, 'aria-current': href === '#/' + cur || ((cur === 'wizard' || cur === 'panels') && href === '#/equipment') ? 'page' : null }, label)))),
     h('main', { id: 'main', tabindex: '-1' }));
@@ -63,7 +64,7 @@ async function resolveUser() {
 }
 async function activate() {
   setUser(state.user.id); await sync.init(state.user.id);
-  if (!sync.status().offline) setTimeout(() => warmCache(state.user.role), 1200);
+  if (!sync.status().offline) setTimeout(() => warmCache(state.user.permissions), 1200);
 }
 
 let seq = 0;
@@ -72,6 +73,7 @@ async function route() {
   if (!state.user) { await resolveUser(); if (my !== seq) return; }
   if (!state.user) return (await import('./views/login.js')).renderLogin(clear(root), onAuth);
   if (state.user.must_change_password) return (await import('./views/login.js')).renderChange(clear(root), onAuth);
+  if (state.user.must_enroll_mfa) { const mod = await import('./views/account.js'); if (my !== seq) return; return mod.renderForcedEnrol(root, onAuth, signOut); }
   await activate(); if (my !== seq) return;
   const [, name = 'equipment', arg] = location.hash.split('/');
   const key = name === 'equipment' && arg === 'new' ? 'wizard' : name;
@@ -95,12 +97,13 @@ function onAuth(user) { state.user = user; state.offlineStart = false; store.met
 window.addEventListener('hashchange', route);
 window.addEventListener('avl:signed-out', () => { if (state.user) { state.user = null; route(); } });
 window.addEventListener('avl:password-change', () => { if (state.user) { state.user.must_change_password = true; route(); } });
+window.addEventListener('avl:mfa-enroll', () => { if (state.user && !state.user.must_enroll_mfa) { state.user.must_enroll_mfa = true; route(); } });
 window.addEventListener('avl:superseded', e => toast(`Someone else changed this more recently, so their version was kept and your change to “${e.detail}” was not applied.`));
 // After queued changes reach the server, refresh what is on screen — unless the person is in the middle of typing.
 window.addEventListener('avl:synced', () => {
   const a = document.activeElement, typing = a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName), name = location.hash.split('/')[1];
   if (!typing && !['wizard', 'sync', undefined].includes(name) && state.user) route();
-  warmCache(state.user?.role);
+  warmCache(state.user?.permissions);
 });
 
 // Installable + offline: register the service worker, and tell the person when a new version has arrived.

@@ -1,6 +1,6 @@
 # Decisions, trade-offs and open questions
 
-Written at the end of Phase 6. "Decided by you" items came from the brief and were not revisited. "Decided by me" items are my judgement calls — **please read those and tell me which to change**; each says what it costs to change.
+Written at the end of Phase 6 and updated after your answers on sign-off, approvers, and two-step sign-in. "Decided by you" items came from the brief and were not revisited. "Decided by me" items are my judgement calls — **please read those and tell me which to change**; each says what it costs to change.
 
 ## A. Decided by you (not revisited)
 1. **Web app hardened as an installable PWA** (iPhone: Add to Home Screen, Mac: Add to Dock) behind HTTPS, with a shared backend. No native iOS/macOS app, no Capacitor/Tauri.
@@ -15,10 +15,10 @@ Written at the end of Phase 6. "Decided by you" items came from the brief and we
 | # | Decision | Why | Cost to change |
 |---|---|---|---|
 | 1 | **SQLite**, not Postgres | One team, one server; backup is one file; zero admin. | Moderate. Revisit if you need several app servers or hundreds of simultaneous users. |
-| 2 | **Access is declared on every route** and a test proves each mutating route refuses every role not listed | Makes "permission checks on every mutating endpoint" checkable, not a promise. | Low. |
-| 3 | **Only Leader/Admin approves** (equipment, modules, panels). Trainers/technicians *submit for review*. | Approval is the control that stops unreviewed (or AI-drafted) content from being trusted. | Low: change one role list per route. |
+| 2 | **Every route declares the permission it needs** (`P('equipment.edit')`…), the app refuses to start if a route names a permission that does not exist, and a test proves that for every permission, a role holding *everything except it* is refused on every route that needs it (and a role holding *only* it is let in) | Makes "permission checks on every mutating endpoint" checkable, not a promise. Replaced the earlier fixed role-name lists. | Low. |
+| 3 | **Approval is its own permission** (`equipment.approve` for equipment and photo panels, `training.approve` for modules). By default **only Leader/Admin holds them**, as you decided; anyone else gets approval only if you create or edit a role to include it. Approvals still carry the version reviewed and stay append-only. | Approval is the control that stops unreviewed (or AI-drafted) content from being trusted. | None needed. |
 | 4 | **Trainers can't score their own practicals**, as well as not signing themselves off | Otherwise self-sign-off is one step away. | Low. |
-| 5 | **Sign-off does not require the module to be Approved** | Not in your rules. | **Open question** — see §F. |
+| 5 | **Sign-off requires the module to be Approved** (your decision). A draft, a module waiting for review, or an approved one edited since all block it. The screen says why; queued offline sign-offs are checked again when they sync. | Nobody is signed off against material nobody has vouched for. | — |
 | 6 | **Quiz answers never reach learners**; grading is on the server | Otherwise answers are readable in the browser. | Consequence: quizzes can't be graded offline; answers queue and are scored on reconnect. |
 | 7 | **Provenance on every value**: Manufacturer / Team / AI-drafted / VERIFY. VERIFY = no value. Manufacturer requires a source on an admin-listed domain (subdomains ok; lookalikes like `maker.com.evil.org` fail). | "Never guess specs" enforced by the database, not just the UI. | Low. |
 | 8 | **Web research returns snippets; a person types the value.** Nothing is auto-extracted into a spec. | Extracting specs automatically is guessing with extra steps. | — |
@@ -41,6 +41,17 @@ Written at the end of Phase 6. "Decided by you" items came from the brief and we
 | 25 | **Backup = folder** (online SQLite copy + files + checksums), verified after writing, 14 kept; **restore** validates first, refuses no-admin / newer / damaged backups, moves current data aside and rolls back on failure | Restores are where people lose data. | — |
 | 26 | **Deployment:** Docker Compose + Caddy (automatic HTTPS), with a systemd alternative | Smallest thing a non-developer can run. **Docker image not built or run** here (no engine). | Low. |
 | 27 | **`reset-password` command** needing server access | Lifeline if every admin is locked out. | — |
+| 28 | **Roles are data: named sets of permissions** an admin can create, edit, delete (if empty) and reset to defaults. 19 permissions, in groups (equipment, operations, training, administration), each with a one-line explanation in the editor. The built-in roles keep their ids and behave exactly as before. **Leader/Admin always holds every permission** (computed, so permissions added in future versions reach it), cannot be edited or deleted, and there is always an active administrator. | You asked for the ability to create roles and permissions. | Adding a permission later is one entry in `server/lib/permissions.js` plus the route that needs it. |
+| 29 | **Everyone signed in can read** equipment, training and issues; permissions govern *changing* things (and a few sensitive reads: people, audit log, export). | Keeps the model small enough to reason about. A "no read access" role is not offered. | Moderate if you ever need confidential material. |
+| 30 | **No climbing: you can only grant what you hold, and only manage what has no more power than you.** Managing roles: you can only give permissions you have and only change/delete roles whose permissions you hold in full. Managing people: you cannot reset, unlock, disable, demote or reset two-step for someone whose role has more power than yours, and cannot create or promote anyone into such a role (including yourself). | Otherwise "can manage people" would be a back door to Leader/Admin (reset an admin's password, take over the account). Tested with deliberate sabotage. | — |
+| 31 | **Role changes take effect on the next request**, no re-login; permissions are read from the database per request. | A removed permission must not linger. | Cost: two small queries per request. |
+| 32 | **A trainee is anyone whose role has "Take training"** (matrix, scoring, sign-off, trainee pickers). The "not yourself" rules apply whatever the role. | Replaces "anyone who is not a viewer", which cannot work with custom roles. | — |
+| 33 | **Upgrades are safe**: SQLite cannot relax a table's constraint in place, so the migration rebuilds `users` with foreign keys off, inside one transaction, and refuses (changing nothing) if any foreign key would break. Tested against a populated Phase 5 database, and against a damaged one. | Deployed installs will upgrade. | — |
+| 34 | **Two-step sign-in is optional TOTP (authenticator app)**; off unless `MFA_ENCRYPTION_KEY` is set; a person can enrol voluntarily; an admin can *require* it for a role (including Leader/Admin). | You wanted the option, probably unused. | Low. |
+| 35 | **MFA design:** secrets stored AES-256-GCM-encrypted with a key that exists only in the environment (so a stolen database or backup cannot bypass the second step); the code step is a single-use, 5-minute, 5-attempt ticket and **wrong codes count toward the same account lockout** as wrong passwords; a code cannot be reused (replay protection) and ±1 step of clock drift is allowed; 8 one-time recovery codes, stored hashed; enrolling, disabling and replacing codes need the password (and a code); turning it on signs out other devices. | Standard practice. | — |
+| 36 | **It fails closed.** If someone enrolled and the server's key is missing, password-only sign-in is **refused** (503), never silently allowed. A wrong key or damaged secret rejects authenticator codes cleanly; recovery codes still work. | A missing setting must not downgrade security. | — |
+| 37 | **Role-required MFA is a gate, not a nag**: until enrolled the person can reach only the setup screen. Requiring it is refused if the server has no key. People in a role that requires it cannot turn it off. | Otherwise "required" means "optional". | — |
+| 38 | **Recovering from a lost phone**: another admin (or a people-manager with at least their power) resets it from the People table; if no admin can sign in, `reset-mfa` on the server; the lost-all-admins password case is `reset-password`. | Every lock needs a door that only server access opens. | — |
 
 ## C. Considered and rejected
 Native app / Capacitor (decided); Postgres (not justified); self-sign-up; per-field merge or CRDTs (complexity beyond the rule you chose); auto-installing updates (never); importing approvals or "installed" states (would forge attribution); client-side API keys; hard-deleting panels/approvals (append-only history); editing a record's `created_by` on import.
@@ -48,24 +59,28 @@ Native app / Capacitor (decided); Postgres (not justified); self-sign-up; per-fi
 ## D. Known limitations and risks
 * **iPhone offline storage:** iOS may clear a web app's local data if unused for weeks. Reopen online regularly. Not tested on a real iPhone.
 * **Data on the device:** offline copies are readable by anyone who can unlock that device (until sign-out). Use device passcodes.
-* **No email, no MFA.** Resets are admin-initiated. MFA is better delivered by SSO later.
+* **No email.** Resets are admin-initiated. **Two-step sign-in is optional and local-only**: it is a one-time code, so it does not stop someone being tricked into typing it into a fake site (passkeys or Microsoft sign-in are the stronger answer, later). When SSO arrives, the identity provider's own MFA replaces this.
+* **Losing `MFA_ENCRYPTION_KEY`** makes authenticator codes unusable (recovery codes and admin reset still work). Keep a copy in a password manager; it is deliberately not in backups.
+* **Custom roles can be misconfigured**, e.g. a role with sign-off but nothing else. The anti-climbing rules prevent escalation but cannot judge whether a role makes sense for your team.
 * **The audit log lives in the same database** as the data. It is append-only to the app, but someone with server access could edit the file. Off-server backups and (if needed) forwarding logs to ITS's logging are the next step.
 * **Single server:** SQLite allows one writer; fine for a team, not for many app servers.
 * **Real services untested:** Brave and Anthropic tested with stand-ins; SharePoint with a sample address.
 * **Accessibility:** automated checks (labels, targets, keyboard pin placement, announcements) pass; no manual screen-reader pass yet.
 * **Self-service data export** is content-only (by design); backups are the full copy.
+* **Permission wording** (the 19 labels and their help text) is my draft, like all wording.
 
 ## E. Revisit when…
 More than a few dozen people use it at once or you want more than one server → Postgres. ITS wants Microsoft sign-in → build the OIDC provider (§A3). Conflicts feel unfair in practice → per-field merge. You need proof of record integrity beyond the audit log → hash-chained or externally forwarded audit.
 
-## F. Open questions for you
+## F. Your answers so far, and what is still open
+**Answered:** (2) sign-off **requires an Approved module** — done. (3) **no one besides Leader/Admin approves by default; build custom roles and permissions** — done (§B 3, 28–33). (7) **two-step sign-in as an option you will probably not use** — done (§B 34–38); nothing to do unless you want it.
+
+**Still open:**
 1. **Hosting target, domain, and where off-server backups go** (blocking deployment).
-2. Should **sign-off require the module to be Approved**? (I recommend yes; it's one line.)
-3. Who besides Leader/Admin, if anyone, may **approve**?
-4. **Wording:** rubric labels (0 Not demonstrated … 3 Independent), provenance names, status names — change to your team's language?
-5. Starting list of **official source domains**, and your **SharePoint host** (`SHAREPOINT_HOSTS`).
-6. **Privacy:** accounts and training records are personal data — does ITS/HR need a retention period or approval? (Audit log currently kept forever.)
-7. Do you want **MFA** before SSO exists?
+2. **Wording:** rubric labels (0 Not demonstrated … 3 Independent), provenance names, status names, and the 19 permission labels — change to your team's language?
+3. Starting list of **official source domains**, and your **SharePoint host** (`SHAREPOINT_HOSTS`).
+4. **Privacy:** accounts and training records are personal data — does ITS/HR need a retention period or approval? (Audit log currently kept forever.)
+5. Which **custom roles** do you want on day one? (Suggestions to consider: a *Reviewer* who can approve equipment and training but not edit; a *Lead Technician* who can edit and delete equipment; an *Auditor* with only “View the audit log”.)
 
 ## G. How this was verified
-Automated tests run on every change (`npm run test:all`): API and security (roles on every route, lockout, rate limits, sign-off rules, provenance, files, sync/conflict rules, import, backup/restore, production headers and cookies, secrets scan, static output-escaping checks) and real-browser tests (login, wizard with real OCR, training, keyboard pin placement, video checkpoints, mobile targets, dark mode, offline opening, offline edits, two-client conflicts, sign-off queueing, sign-out wipe). Several guards were also deliberately broken to confirm the tests catch them. See `DEPLOY.md` §9 for what was **not** tested.
+Automated tests run on every change (`npm run test:all`): API and security (the permission matrix on every route in both directions, anti-climbing rules, upgrade of a populated database, TOTP against the official RFC test vectors, two-step enrolment/sign-in/replay/lockout/recovery/fail-closed, lockout, rate limits, sign-off rules, provenance, files, sync/conflict rules, import, backup/restore, production headers and cookies, secrets scan, static output-escaping checks) and real-browser tests (login, wizard with real OCR, training, keyboard pin placement, video checkpoints, mobile targets, dark mode, offline opening, offline edits, two-client conflicts, sign-off queueing, sign-out wipe). Several guards were also deliberately broken to confirm the tests catch them. See `DEPLOY.md` §9 for what was **not** tested.

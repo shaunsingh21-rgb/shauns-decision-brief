@@ -1,27 +1,36 @@
 'use strict';
 const crypto = require('crypto');
 const { HttpError } = require('../lib/errors');
-const { z, text, id, username, ROLES, parse } = require('../lib/validate');
+const { z, text, id, username, parse } = require('../lib/validate');
 const { checkPasswordPolicy, generatePassword } = require('./auth');
 
-const ADMIN = ['admin'];
 const cols = 'id,username,display_name,role,must_change_password,auth_provider,disabled,created_at,last_login_at';
+// Power rules: a person managing people can only touch people (and hand out roles) with no more power than their own.
+const TOO_MUCH = 'That would give more power than your own role has, so only someone with a more powerful role can do it.';
 
 module.exports = function userRoutes(api, ctx) {
+  const { P } = api;
   const { db, config, audit, auth } = ctx;
   const limits = require('../middleware/limits')(config);
-  const get = uid => db.prepare(`SELECT ${cols} FROM users WHERE id=?`).get(uid);
+  const roles = ctx.roles;
+  const withRole = u => u && ({ ...u, role_name: (roles.get(u.role) || {}).name || u.role });
+  const get = uid => withRole(db.prepare(`SELECT ${cols} FROM users WHERE id=?`).get(uid));
+  const roleOk = rid => { if (!roles.get(rid)) throw new HttpError(400, 'BAD_ROLE', 'That role does not exist.'); };
+  const mayAssign = (req, rid) => { if (!roles.outranks(req.permissions, rid)) throw new HttpError(403, 'TOO_POWERFUL', TOO_MUCH); };
+  const mayManage = (req, u) => { if (!roles.outranks(req.permissions, u.role)) throw new HttpError(403, 'TOO_POWERFUL', 'This person’s role has more power than yours, so you cannot change their account.'); };
   const activeAdmins = () => db.prepare("SELECT COUNT(*) n FROM users WHERE role='admin' AND disabled=0").get().n;
   const need = uid => { const u = get(uid); if (!u) throw new HttpError(404, 'NOT_FOUND', 'User not found.'); return u; };
 
-  api.get('/users', ADMIN, async (_req, res) => res.json({ users: db.prepare(`SELECT ${cols} FROM users ORDER BY username`).all() }));
+  api.get('/users', P('users.manage'), async (req, res) => res.json({ users: db.prepare(`SELECT ${cols} FROM users ORDER BY username`).all().map(u => ({ ...withRole(u), can_manage: roles.outranks(req.permissions, u.role), mfa_enabled: ctx.mfa.enabled(u.id) })) }));
 
   // Directory visible to every signed-in user (needed for trainee pickers); no sensitive columns.
   api.get('/people', 'any', async (_req, res) =>
-    res.json({ people: db.prepare('SELECT id,display_name,role FROM users WHERE disabled=0 ORDER BY display_name').all() }));
+    res.json({ people: db.prepare('SELECT id,display_name,role FROM users WHERE disabled=0 ORDER BY display_name').all()
+      .map(p => ({ id: p.id, display_name: p.display_name, role_name: (roles.get(p.role) || {}).name || p.role, can_train: roles.permissionsOf(p.role).has('training.take') })) }));
 
-  api.post('/users', ADMIN, limits.sensitive, async (req, res) => {
-    const b = parse(z.object({ username, display_name: text(80, 1), role: z.enum(ROLES), temporary_password: z.string().max(256).optional() }).strict(), req.body);
+  api.post('/users', P('users.manage'), limits.sensitive, async (req, res) => {
+    const b = parse(z.object({ username, display_name: text(80, 1), role: id.or(z.string().regex(/^[a-z]{3,20}$/)), temporary_password: z.string().max(256).optional() }).strict(), req.body);
+    roleOk(b.role); mayAssign(req, b.role);
     const temp = b.temporary_password || generatePassword();
     checkPasswordPolicy(config, temp, b.username);
     if (db.prepare('SELECT 1 FROM users WHERE username=?').get(b.username)) throw new HttpError(409, 'USERNAME_TAKEN', 'That username already exists.');
@@ -36,10 +45,11 @@ module.exports = function userRoutes(api, ctx) {
     res.status(201).json({ user: get(uid), temporary_password: temp });
   });
 
-  api.patch('/users/:id', ADMIN, limits.sensitive, async (req, res) => {
+  api.patch('/users/:id', P('users.manage'), limits.sensitive, async (req, res) => {
     const uid = parse(id, req.params.id);
-    const b = parse(z.object({ display_name: text(80, 1).optional(), role: z.enum(ROLES).optional(), disabled: z.boolean().optional() }).strict(), req.body);
-    const cur = need(uid);
+    const b = parse(z.object({ display_name: text(80, 1).optional(), role: id.or(z.string().regex(/^[a-z]{3,20}$/)).optional(), disabled: z.boolean().optional() }).strict(), req.body);
+    const cur = need(uid); mayManage(req, cur);
+    if (b.role) { roleOk(b.role); mayAssign(req, b.role); }
     const losesAdmin = cur.role === 'admin' && !cur.disabled && ((b.role && b.role !== 'admin') || b.disabled === true);
     if (losesAdmin && activeAdmins() <= 1) throw new HttpError(409, 'LAST_ADMIN', 'At least one active administrator is required.');
     db.transaction(() => {
@@ -51,9 +61,9 @@ module.exports = function userRoutes(api, ctx) {
     res.json({ user: get(uid) });
   });
 
-  api.post('/users/:id/reset-password', ADMIN, limits.sensitive, async (req, res) => {
+  api.post('/users/:id/reset-password', P('users.manage'), limits.sensitive, async (req, res) => {
     const uid = parse(id, req.params.id);
-    const cur = need(uid);
+    const cur = need(uid); mayManage(req, cur);       // otherwise anyone who can manage people could take over an administrator's account
     if (cur.auth_provider !== 'local') throw new HttpError(400, 'NOT_LOCAL', 'This account does not use a local password.');
     const temp = generatePassword();
     const hash = await auth.provider.hashPassword(temp);
@@ -66,8 +76,15 @@ module.exports = function userRoutes(api, ctx) {
     res.json({ temporary_password: temp });
   });
 
-  api.post('/users/:id/unlock', ADMIN, limits.sensitive, async (req, res) => {
-    const cur = need(parse(id, req.params.id));
+  // Lost phone: turns two-step sign-in off for that person (they can enrol again; if their role requires it, they must). Needs no more power than theirs.
+  api.post('/users/:id/mfa-reset', P('users.manage'), limits.sensitive, async (req, res) => {
+    const cur = need(parse(id, req.params.id)); mayManage(req, cur);
+    db.transaction(() => { ctx.mfa.remove(cur.id); auth.sessions.destroyAllForUser(cur.id); audit(req, 'mfa.reset', 'user', cur.id); })();
+    res.json({ ok: true });
+  });
+
+  api.post('/users/:id/unlock', P('users.manage'), limits.sensitive, async (req, res) => {
+    const cur = need(parse(id, req.params.id)); mayManage(req, cur);
     db.transaction(() => {
       db.prepare('DELETE FROM login_failures WHERE key=?').run(cur.username.toLowerCase());
       audit(req, 'user.unlock', 'user', cur.id);
@@ -79,7 +96,7 @@ module.exports = function userRoutes(api, ctx) {
   const { domain } = require('../lib/validate');
   api.get('/sources', 'any', async (_req, res) =>
     res.json({ domains: db.prepare('SELECT domain,created_at FROM source_domains ORDER BY domain').all() }));
-  api.post('/sources', ADMIN, async (req, res) => {
+  api.post('/sources', P('sources.manage'), async (req, res) => {
     const b = parse(z.object({ domain }).strict(), req.body);
     db.transaction(() => {
       db.prepare('INSERT OR IGNORE INTO source_domains VALUES (?,?,?)').run(b.domain, req.user.id, new Date().toISOString());
@@ -87,7 +104,7 @@ module.exports = function userRoutes(api, ctx) {
     })();
     res.status(201).json({ domain: b.domain });
   });
-  api.delete('/sources/:domain', ADMIN, async (req, res) => {
+  api.delete('/sources/:domain', P('sources.manage'), async (req, res) => {
     const d = parse(z.object({ domain }), { domain: req.params.domain }).domain;
     db.transaction(() => {
       db.prepare('DELETE FROM source_domains WHERE domain=?').run(d);
@@ -96,7 +113,7 @@ module.exports = function userRoutes(api, ctx) {
     res.json({ ok: true });
   });
 
-  api.get('/audit', ADMIN, async (req, res) => {
+  api.get('/audit', P('audit.view'), async (req, res) => {
     const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 100));
     const before = parseInt(req.query.before, 10) || Number.MAX_SAFE_INTEGER;
     res.json({ entries: db.prepare('SELECT * FROM audit_log WHERE id < ? ORDER BY id DESC LIMIT ?').all(before, limit) });

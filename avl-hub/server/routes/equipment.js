@@ -4,8 +4,6 @@ const { HttpError } = require('../lib/errors');
 const { z, text, id, slug, url, PROVENANCE, parse, hostMatches } = require('../lib/validate');
 const { editTime, superseded } = require('../lib/sync');
 
-const EDITORS = ['admin', 'trainer', 'technician'];
-const ADMIN = ['admin'];
 
 const field = z.object({
   key: slug,
@@ -15,6 +13,7 @@ const field = z.object({
 }).strict();
 
 module.exports = function equipmentRoutes(api, ctx) {
+  const { P } = api;
   const { db, audit } = ctx;
   const now = () => new Date().toISOString();
   const domains = () => db.prepare('SELECT domain FROM source_domains').all().map(r => r.domain);
@@ -53,7 +52,7 @@ module.exports = function equipmentRoutes(api, ctx) {
      FROM equipment e WHERE deleted_at IS NULL ORDER BY e.name`).all() }));
   api.get('/equipment/:id', 'any', async (req, res) => res.json({ equipment: full(parse(id, req.params.id)) }));
 
-  api.post('/equipment', EDITORS, async (req, res) => {
+  api.post('/equipment', P('equipment.edit'), async (req, res) => {
     const b = parse(z.object({ id: id.optional(), name: text(120, 1), manufacturer: text(120).optional(), category: text(60).optional(), fields: z.array(field).max(100).default([]) }).strict(), req.body);
     if (b.id && db.prepare('SELECT 1 FROM equipment WHERE id=?').get(b.id)) throw new HttpError(409, 'ID_EXISTS', 'That id already exists.');
     b.fields.forEach(checkField);
@@ -68,7 +67,7 @@ module.exports = function equipmentRoutes(api, ctx) {
     res.status(201).json({ equipment: full(eid) });
   });
 
-  api.patch('/equipment/:id', EDITORS, async (req, res) => {
+  api.patch('/equipment/:id', P('equipment.edit'), async (req, res) => {
     const eid = parse(id, req.params.id);
     const b = parse(z.object({ name: text(120, 1).optional(), manufacturer: text(120).optional(), category: text(60).optional(),
       fields: z.array(field).max(100).optional(), remove_fields: z.array(slug).max(100).optional() }).strict(), req.body);
@@ -93,7 +92,7 @@ module.exports = function equipmentRoutes(api, ctx) {
     res.json({ equipment: full(eid) });
   });
 
-  api.post('/equipment/:id/submit-review', EDITORS, async (req, res) => {
+  api.post('/equipment/:id/submit-review', P('equipment.edit'), async (req, res) => {
     const eid = parse(id, req.params.id); const cur = live(eid);
     if (cur.status === 'approved') throw new HttpError(409, 'ALREADY_APPROVED', 'Already approved.');
     db.transaction(() => {
@@ -104,7 +103,7 @@ module.exports = function equipmentRoutes(api, ctx) {
   });
 
   // Approval is a human, attributed, append-only act. VERIFY items block it unless explicitly overridden with a reason.
-  api.post('/equipment/:id/approve', ADMIN, async (req, res) => {
+  api.post('/equipment/:id/approve', P('equipment.approve'), async (req, res) => {
     const eid = parse(id, req.params.id);
     const b = parse(z.object({ override: z.boolean().default(false), override_reason: text(500).optional(), reviewed_version: z.number().int().optional() }).strict(), req.body);
     const cur = live(eid);
@@ -125,7 +124,7 @@ module.exports = function equipmentRoutes(api, ctx) {
     res.json({ equipment: full(eid) });
   });
 
-  api.delete('/equipment/:id', ADMIN, async (req, res) => {
+  api.delete('/equipment/:id', P('equipment.delete'), async (req, res) => {
     const eid = parse(id, req.params.id); live(eid);
     db.transaction(() => {
       db.prepare('UPDATE equipment SET deleted_at=?, updated_by=?, updated_at=? WHERE id=?').run(now(), req.user.id, now(), eid);

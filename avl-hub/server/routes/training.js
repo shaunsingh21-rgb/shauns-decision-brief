@@ -4,13 +4,13 @@ const { HttpError } = require('../lib/errors');
 const { z, text, id, parse } = require('../lib/validate');
 const { editTime, superseded } = require('../lib/sync');
 
-const AUTHORS = ['admin', 'trainer'];
-const LEARNERS = ['admin', 'trainer', 'technician'];
 const PASS_PCT = 80, PASS_SKILL = 2;
 
 module.exports = function trainingRoutes(api, ctx) {
+  const { P } = api;
   const { db, audit } = ctx;
   const now = () => new Date().toISOString();
+  const isTrainee = uid => { const u = db.prepare('SELECT role FROM users WHERE id=? AND disabled=0').get(uid); return !!u && ctx.roles.permissionsOf(u.role).has('training.take'); };
   const mod = mid => { const m = db.prepare('SELECT * FROM training_modules WHERE id=?').get(mid); if (!m) throw new HttpError(404, 'NOT_FOUND', 'Module not found.'); return m; };
   // Editing approved material returns it to Needs Review.
   const touch = (req, m) => db.prepare(`UPDATE training_modules SET status=CASE WHEN status='approved' THEN 'needs_review' ELSE status END,
@@ -41,14 +41,14 @@ module.exports = function trainingRoutes(api, ctx) {
 
   api.get('/modules/:id', 'any', async (req, res) => {
     const m = mod(parse(id, req.params.id));
-    const author = AUTHORS.includes(req.user.role);
+    const author = req.permissions.has('training.author');
     m.skills = db.prepare('SELECT id,name FROM practical_skills WHERE module_id=? ORDER BY rowid').all(m.id);
     m.quiz = db.prepare('SELECT id,prompt,options,correct_index FROM quiz_questions WHERE module_id=? ORDER BY rowid').all(m.id)
       .map(q => ({ id: q.id, prompt: q.prompt, options: JSON.parse(q.options), ...(author ? { correct_index: q.correct_index } : {}) })); // learners never see answers
     res.json({ module: m });
   });
 
-  api.post('/modules', AUTHORS, async (req, res) => {
+  api.post('/modules', P('training.author'), async (req, res) => {
     const b = parse(z.object({ title: text(120, 1), level: z.number().int().min(1).max(5), summary: text(2000).optional(), equipment_id: id.optional() }).strict(), req.body);
     if (b.equipment_id && !db.prepare('SELECT 1 FROM equipment WHERE id=? AND deleted_at IS NULL').get(b.equipment_id)) throw new HttpError(400, 'BAD_EQUIPMENT', 'Unknown equipment.');
     const mid = crypto.randomUUID();
@@ -60,7 +60,7 @@ module.exports = function trainingRoutes(api, ctx) {
     res.status(201).json({ module: mod(mid) });
   });
 
-  api.patch('/modules/:id', AUTHORS, async (req, res) => {
+  api.patch('/modules/:id', P('training.author'), async (req, res) => {
     const m = mod(parse(id, req.params.id));
     const b = parse(z.object({ title: text(120, 1).optional(), level: z.number().int().min(1).max(5).optional(), summary: text(2000).optional() }).strict(), req.body);
     const at = editTime(req);
@@ -76,7 +76,7 @@ module.exports = function trainingRoutes(api, ctx) {
     res.json({ module: mod(m.id) });
   });
 
-  api.post('/modules/:id/submit-review', AUTHORS, async (req, res) => {
+  api.post('/modules/:id/submit-review', P('training.author'), async (req, res) => {
     const m = mod(parse(id, req.params.id));
     if (m.status === 'approved') throw new HttpError(409, 'ALREADY_APPROVED', 'Already approved.');
     db.transaction(() => {
@@ -86,7 +86,7 @@ module.exports = function trainingRoutes(api, ctx) {
     res.json({ module: mod(m.id) });
   });
 
-  api.post('/modules/:id/approve', ['admin'], async (req, res) => {
+  api.post('/modules/:id/approve', P('training.approve'), async (req, res) => {
     const m = mod(parse(id, req.params.id));
     const rv = parse(z.object({ reviewed_version: z.number().int().optional() }).strict(), req.body);
     if (rv.reviewed_version !== undefined && rv.reviewed_version !== m.version) throw new HttpError(409, 'STALE_REVIEW', 'This material changed after you reviewed it. Review the latest version, then approve again.', { current_version: m.version });
@@ -98,7 +98,7 @@ module.exports = function trainingRoutes(api, ctx) {
     res.json({ module: mod(m.id) });
   });
 
-  api.post('/modules/:id/questions', AUTHORS, async (req, res) => {
+  api.post('/modules/:id/questions', P('training.author'), async (req, res) => {
     const m = mod(parse(id, req.params.id));
     const b = parse(z.object({ prompt: text(500, 1), options: z.array(text(200, 1)).min(2).max(6), correct_index: z.number().int().min(0) }).strict(), req.body);
     if (b.correct_index >= b.options.length) throw new HttpError(400, 'VALIDATION', 'correct_index out of range.');
@@ -109,7 +109,7 @@ module.exports = function trainingRoutes(api, ctx) {
     })();
     res.status(201).json({ id: qid });
   });
-  api.delete('/questions/:id', AUTHORS, async (req, res) => {
+  api.delete('/questions/:id', P('training.author'), async (req, res) => {
     const q = db.prepare('SELECT * FROM quiz_questions WHERE id=?').get(parse(id, req.params.id));
     if (!q) throw new HttpError(404, 'NOT_FOUND', 'Question not found.');
     db.transaction(() => {
@@ -119,7 +119,7 @@ module.exports = function trainingRoutes(api, ctx) {
     res.json({ ok: true });
   });
 
-  api.post('/modules/:id/skills', AUTHORS, async (req, res) => {
+  api.post('/modules/:id/skills', P('training.author'), async (req, res) => {
     const m = mod(parse(id, req.params.id));
     const b = parse(z.object({ name: text(120, 1) }).strict(), req.body);
     const sid = crypto.randomUUID();
@@ -129,7 +129,7 @@ module.exports = function trainingRoutes(api, ctx) {
     })();
     res.status(201).json({ id: sid });
   });
-  api.delete('/skills/:id', AUTHORS, async (req, res) => {
+  api.delete('/skills/:id', P('training.author'), async (req, res) => {
     const s = db.prepare('SELECT * FROM practical_skills WHERE id=?').get(parse(id, req.params.id));
     if (!s) throw new HttpError(404, 'NOT_FOUND', 'Skill not found.');
     if (db.prepare('SELECT 1 FROM practical_scores WHERE skill_id=?').get(s.id)) throw new HttpError(409, 'HAS_SCORES', 'This skill already has recorded scores and cannot be removed.');
@@ -141,7 +141,7 @@ module.exports = function trainingRoutes(api, ctx) {
   });
 
   // Quiz is graded on the server. The attempt is attributed to the signed-in user, never to a client-supplied id.
-  api.post('/modules/:id/quiz-attempts', LEARNERS, async (req, res) => {
+  api.post('/modules/:id/quiz-attempts', P('training.take'), async (req, res) => {
     const m = mod(parse(id, req.params.id));
     const b = parse(z.object({ answers: z.record(id, z.number().int().min(0).max(5)) }).strict(), req.body);
     const qs = db.prepare('SELECT id,correct_index FROM quiz_questions WHERE module_id=?').all(m.id);
@@ -156,10 +156,10 @@ module.exports = function trainingRoutes(api, ctx) {
   });
 
   // Practical rubric 0-3, scored by a trainer; the trainer cannot score themselves.
-  api.post('/practical-scores', AUTHORS, async (req, res) => {
+  api.post('/practical-scores', P('training.score'), async (req, res) => {
     const b = parse(z.object({ trainee_id: id, skill_id: id, score: z.number().int().min(0).max(3), note: text(500).optional() }).strict(), req.body);
     if (b.trainee_id === req.user.id) throw new HttpError(403, 'SELF_SCORING', 'You cannot score your own practical.');
-    if (!db.prepare('SELECT 1 FROM users WHERE id=? AND disabled=0').get(b.trainee_id)) throw new HttpError(400, 'BAD_TRAINEE', 'Unknown trainee.');
+    if (!isTrainee(b.trainee_id)) throw new HttpError(400, 'BAD_TRAINEE', 'That person is not a trainee (their role cannot take training).');
     const s = db.prepare('SELECT * FROM practical_skills WHERE id=?').get(b.skill_id);
     if (!s) throw new HttpError(400, 'BAD_SKILL', 'Unknown skill.');
     const pid = crypto.randomUUID();
@@ -171,11 +171,13 @@ module.exports = function trainingRoutes(api, ctx) {
   });
 
   // Sign-off: quiz >= 80%, every practical skill >= 2, never your own. Append-only, attributed to the session user.
-  api.post('/signoffs', AUTHORS, async (req, res) => {
+  api.post('/signoffs', P('training.signoff'), async (req, res) => {
     const b = parse(z.object({ trainee_id: id, module_id: id, note: text(500).optional() }).strict(), req.body);
     if (b.trainee_id === req.user.id) throw new HttpError(403, 'SELF_SIGNOFF', 'You cannot sign off your own training.');
-    if (!db.prepare('SELECT 1 FROM users WHERE id=? AND disabled=0').get(b.trainee_id)) throw new HttpError(400, 'BAD_TRAINEE', 'Unknown trainee.');
-    mod(b.module_id);
+    if (!isTrainee(b.trainee_id)) throw new HttpError(400, 'BAD_TRAINEE', 'That person is not a trainee (their role cannot take training).');
+    const sm = mod(b.module_id);
+    // Nobody is signed off against material that has not been approved (or that changed after approval and awaits review).
+    if (sm.status !== 'approved') throw new HttpError(409, 'MODULE_NOT_APPROVED', `This module is ${sm.status === 'needs_review' ? 'waiting for review' : 'still a draft'}. It must be approved before anyone can be signed off on it.`);
     const p = progress(b.trainee_id, b.module_id);
     const missing = [];
     if (!p.written.has_quiz) missing.push('This module has no quiz.');
@@ -194,13 +196,14 @@ module.exports = function trainingRoutes(api, ctx) {
 
   api.get('/progress/:userId', 'any', async (req, res) => {
     const uid = parse(id, req.params.userId);
-    if (uid !== req.user.id && !AUTHORS.includes(req.user.role)) throw new HttpError(403, 'FORBIDDEN', 'You can only view your own progress.');
+    if (uid !== req.user.id && !req.permissions.has('progress.view_all')) throw new HttpError(403, 'FORBIDDEN', 'You can only view your own progress.');
     const mods = db.prepare('SELECT id,title,level FROM training_modules ORDER BY level,title').all();
     res.json({ progress: mods.map(m => ({ title: m.title, level: m.level, ...progress(uid, m.id) })) });
   });
 
   api.get('/skill-matrix', 'any', async (_req, res) => {
-    const users = db.prepare("SELECT id,display_name,role FROM users WHERE disabled=0 AND role<>'viewer' ORDER BY display_name").all();
+    const users = db.prepare('SELECT id,display_name,role FROM users WHERE disabled=0 ORDER BY display_name').all().filter(u => ctx.roles.permissionsOf(u.role).has('training.take'))
+      .map(u => ({ id: u.id, display_name: u.display_name, role_name: (ctx.roles.get(u.role) || {}).name || u.role }));
     const skills = db.prepare(`SELECT s.id,s.name,m.id module_id,m.title module_title,m.level FROM practical_skills s JOIN training_modules m ON m.id=s.module_id ORDER BY m.level,m.title,s.rowid`).all();
     const scores = {};
     for (const r of db.prepare(`SELECT trainee_id,skill_id,score FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY trainee_id,skill_id ORDER BY rowid DESC) rn FROM practical_scores) WHERE rn=1`).all())

@@ -7,6 +7,8 @@ const rateLimit = require('express-rate-limit');
 const loadConfig = require('./config');
 const { open, migrate } = require('./db');
 const makeAudit = require('./audit');
+const makeRoles = require('./lib/roles');
+const makeMfa = require('./lib/mfa');
 const createAuth = require('./auth');
 const makeApi = require('./api');
 const { session, csrf } = require('./middleware/security');
@@ -32,7 +34,9 @@ function createApp(overrides = {}) {
   const config = loadConfig(overrides);
   const db = open(config.dbPath);
   migrate(db);
-  const ctx = { config, db, audit: makeAudit(db), fetch: overrides.fetchImpl || globalThis.fetch };
+  const ctx = { config, db, audit: makeAudit(db), fetch: overrides.fetchImpl || globalThis.fetch, clock: overrides.clock || Date.now };
+  ctx.roles = makeRoles(db);
+  ctx.mfa = makeMfa(ctx);
   ctx.auth = createAuth(ctx);
 
   const app = express();
@@ -56,7 +60,7 @@ function createApp(overrides = {}) {
   const smallJson = express.json({ limit: '256kb' });
   app.use('/api', (req, res, next) => (req.path === '/admin/import' ? next() : smallJson(req, res, next)),   // import has its own larger limit, after sign-in
     (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); }, session(ctx), csrf, idempotency(ctx), api.router);
-  for (const r of ['auth', 'users', 'equipment', 'training', 'issues', 'install', 'external', 'files', 'lessons', 'panels', 'portability']) require(`./routes/${r}`)(api, ctx);
+  for (const r of ['auth', 'users', 'equipment', 'training', 'issues', 'install', 'external', 'files', 'lessons', 'panels', 'portability', 'roles', 'mfa']) require(`./routes/${r}`)(api, ctx);
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'NOT_FOUND', 'No such endpoint.')));
 
   const pub = path.join(__dirname, '..', 'public');

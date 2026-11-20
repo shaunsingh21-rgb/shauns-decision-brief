@@ -66,3 +66,12 @@ button.linkish{border:0;background:none;color:var(--accent);text-decoration:unde
 video.lesson{width:100%;max-height:70vh;border-radius:10px;background:#000}
 .syncline{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border-radius:99px;font-size:.85rem;font-weight:700;text-decoration:none;border:1px solid rgba(255,255,255,.6);color:#fff}
 .syncline.s-ok{background:rgba(255,255,255,.14)}.syncline.s-warn{background:#8a5a00}.syncline.s-bad{background:#9b2c1f}
+.perm{margin:4px 0 10px}.perm .hint{margin-left:34px}
+.permlist{columns:2;column-gap:24px;padding-left:20px;margin:6px 0}
+@media (max-width:560px){.permlist{columns:1}}
+.userlink{color:#fff;min-height:44px;display:inline-flex;align-items:center;padding:0 8px;border-radius:10px}
+.userlink[aria-current=page]{background:rgba(255,255,255,.2)}
+.qr{display:block;margin:8px auto;background:#fff;padding:6px;border-radius:8px}
+.key,.codes code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1.05rem;letter-spacing:.04em;word-break:break-all}
+.codes{columns:2;column-gap:24px;padding-left:20px}.codes li{margin:6px 0}
+@media (max-width:560px){.codes{columns:1}}

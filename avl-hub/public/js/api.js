@@ -10,6 +10,7 @@ const fire = (name, detail) => window.dispatchEvent(new CustomEvent(name, { deta
 const fail = r => {
   if (r.status === 401) fire('avl:signed-out');
   if (r.json?.error?.code === 'PASSWORD_CHANGE_REQUIRED') fire('avl:password-change');
+  if (r.json?.error?.code === 'MFA_ENROLLMENT_REQUIRED') fire('avl:mfa-enroll');
   return new ApiError(r.status, r.json?.error);
 };
 const offlineErr = () => new ApiError(0, { code: 'OFFLINE', message: OFFLINE_MSG });
@@ -72,17 +73,18 @@ export async function upload(file, fields) {
 
 // Quietly keep the offline copy fresh: everything you could want to read on a job site, fetched in the background.
 let warming = false;
-export async function warmCache(role) {
+export async function warmCache(perms = []) {
   if (warming || !uid) return; warming = true;
+  const has = p => perms.includes(p);
   const lim = (a, n) => a.slice(0, n);
   const pool = async (tasks, n = 4) => { const q = [...tasks]; await Promise.all(Array.from({ length: n }, async () => { while (q.length) { try { await q.shift()(); } catch { /* skip */ } } })); };
   try {
     const [eq, mods, panels] = await Promise.all([get('/equipment'), get('/modules'), get('/panels')]);
     const tasks = [() => get('/updates'), () => get('/issues'), () => get('/people'), () => get('/skill-matrix'), () => get('/sources'), () => get(`/progress/${uid}`),
-      ...(role === 'admin' ? [() => get('/users'), () => get('/audit?limit=50')] : [])];
+      ...(has('users.manage') ? [() => get('/users')] : []), ...(has('roles.manage') || has('users.manage') ? [() => get('/roles')] : []), ...(has('audit.view') ? [() => get('/audit?limit=50')] : [])];
     for (const e of lim(eq.equipment, 150)) tasks.push(() => get(`/equipment/${e.id}`), () => get(`/equipment/${e.id}/install-steps`), () => get(`/panels?equipment_id=${e.id}`), () => get(`/files?equipment_id=${e.id}&purpose=document`));
     for (const m of lim(mods.modules, 100)) tasks.push(() => get(`/modules/${m.id}`), () => get(`/modules/${m.id}/videos`));
-    if (role === 'admin' || role === 'trainer') { const { people } = await get('/people'); for (const x of lim(people, 100)) tasks.push(() => get(`/progress/${x.id}`)); }   // so sign-offs can be prepared offline
+    if (has('progress.view_all')) { const { people } = await get('/people'); for (const x of lim(people, 100)) tasks.push(() => get(`/progress/${x.id}`)); }   // so sign-offs can be prepared offline
     for (const p of lim(panels.panels, 150)) tasks.push(() => get(`/panels/${p.id}`), () => fetch(`/api/files/${p.file_id}`, { credentials: 'same-origin' }).then(r => r.blob()));   // the service worker keeps the photo
     await pool(tasks);
   } catch { /* offline or partial: fine */ } finally { warming = false; }

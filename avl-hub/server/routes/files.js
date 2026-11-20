@@ -7,7 +7,6 @@ const multer = require('multer');
 const { HttpError } = require('../lib/errors');
 const { z, id, parse } = require('../lib/validate');
 
-const EDITORS = ['admin', 'trainer', 'technician'];
 // Allowed types per purpose; the type is decided from the file's own bytes, never from the browser-supplied header or extension.
 const ALLOWED = { photo: ['image/jpeg', 'image/png', 'image/webp'], document: ['application/pdf'], video: ['video/mp4', 'video/webm'] };
 function sniff(buf) {
@@ -22,6 +21,7 @@ function sniff(buf) {
 const safeName = n => (path.basename(String(n || 'file')).replace(/[\u0000-\u001f\u007f\\/:*?"<>|]/g, '_').trim().slice(0, 120)) || 'file';
 
 module.exports = function fileRoutes(api, ctx) {
+  const { P } = api;
   const { db, config, audit } = ctx;
   const rate = require('../middleware/limits')(config);
   const tmpDir = path.join(config.uploadDir, '_tmp'), storeDir = path.join(config.uploadDir, 'files');
@@ -38,7 +38,7 @@ module.exports = function fileRoutes(api, ctx) {
   });
   const meta = r => ({ id: r.id, purpose: r.purpose, mime: r.mime, size: r.size, name: r.original_name, equipment_id: r.equipment_id, created_at: r.created_at });
 
-  api.post('/files', EDITORS, rate.upload, receive, async (req, res) => {
+  api.post('/files', P('equipment.edit'), rate.upload, receive, async (req, res) => {
     const tmp = req.file && req.file.path;
     const bail = (status, code, msg) => { if (tmp) fs.rmSync(tmp, { force: true }); throw new HttpError(status, code, msg); };
     if (!req.file) bail(400, 'NO_FILE', 'Choose a file to upload.');
@@ -81,7 +81,7 @@ module.exports = function fileRoutes(api, ctx) {
     res.sendFile(p, { dotfiles: 'allow', acceptRanges: true, cacheControl: false });   // supports Range, so video seeking works
   });
 
-  api.delete('/files/:id', ['admin', 'trainer'], async (req, res) => {
+  api.delete('/files/:id', P('files.delete'), async (req, res) => {
     const f = db.prepare('SELECT * FROM files WHERE id=? AND deleted_at IS NULL').get(parse(id, req.params.id));
     if (!f) throw new HttpError(404, 'NOT_FOUND', 'File not found.');
     if (db.prepare('SELECT 1 FROM photo_panels WHERE file_id=? AND deleted_at IS NULL UNION SELECT 1 FROM lesson_videos WHERE file_id=?').get(f.id, f.id))

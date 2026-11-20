@@ -3,7 +3,7 @@ import { get, post, del, upload, mutate } from '../api.js';
 import { mmss, parseTime } from '../media.js';
 import { can, toast, errMsg, state, noteQueued } from '../app.js';
 
-const AUTHORS = ['admin', 'trainer'], LEARN = ['admin', 'trainer', 'technician'];
+const AUTHORS = ['training.author'], LEARN = ['training.take'];
 const RUBRIC = [[0, '0 — Not demonstrated'], [1, '1 — Needs coaching'], [2, '2 — Competent, minimal help'], [3, '3 — Independent']];
 const LEVELS = ['Level 1', 'Level 2', 'Level 3', 'Level 4', 'Level 5'];
 
@@ -66,10 +66,10 @@ async function moduleView(root, id) {
   if (can(...AUTHORS)) p.append(skillForm(id, reload));
 
   root.append(w, p, await videosCard(m, id, reload));
-  if (can(...AUTHORS)) root.append(await trainerPanel(m, reload));
-  if (can(...AUTHORS)) root.append(h('div', { class: 'card' }, h('h2', {}, 'Review'), h('div', { class: 'row' },
-    m.status === 'draft' && h('button', { onclick: run(() => mutate('POST', `/modules/${id}/submit-review`, {}, { label: `Submit “${m.title}” for review` })) }, 'Submit for review'),
-    can('admin') && m.status !== 'approved' && h('button', { class: 'primary', onclick: run(() => mutate('POST', `/modules/${id}/approve`, { reviewed_version: m.version }, { label: `Approve “${m.title}”` })) }, 'Approve material'))));
+  if (can('training.score', 'training.signoff')) root.append(await trainerPanel(m, reload));
+  if (can('training.author', 'training.approve')) root.append(h('div', { class: 'card' }, h('h2', {}, 'Review'), h('div', { class: 'row' },
+    m.status === 'draft' && can('training.author') && h('button', { onclick: run(() => mutate('POST', `/modules/${id}/submit-review`, {}, { label: `Submit “${m.title}” for review` })) }, 'Submit for review'),
+    can('training.approve') && m.status !== 'approved' && h('button', { class: 'primary', onclick: run(() => mutate('POST', `/modules/${id}/approve`, { reviewed_version: m.version }, { label: `Approve “${m.title}”` })) }, 'Approve material'))));
 }
 
 function questionForm(id, reload) {
@@ -85,7 +85,7 @@ function skillForm(id, reload) {
 
 async function trainerPanel(m, reload) {
   const { people } = await get('/people');
-  const others = people.filter(x => x.id !== state.user.id && x.role !== 'viewer');
+  const others = people.filter(x => x.id !== state.user.id && x.can_train);
   const sel = select([['', 'Choose a trainee…'], ...others.map(x => [x.id, x.display_name])], ''); sel.setAttribute('aria-label', 'Trainee');
   const body = h('div');
   sel.addEventListener('change', async () => {
@@ -94,9 +94,10 @@ async function trainerPanel(m, reload) {
     const scoreSel = {};
     body.append(h('p', {}, `Written: ${t.written.best_pct ?? 'not taken'}${t.written.best_pct != null ? '%' : ''} ${t.written.passed ? '✓' : ''}`),
       ...t.practical.skills.map(s => { const sc = select(RUBRIC, s.score ?? 0); scoreSel[s.skill_id] = sc; sc.setAttribute('aria-label', `Score for ${s.name}`);
+        if (!can('training.score')) return h('div', { class: 'row' }, h('span', { class: 'grow' }, `${s.name} (now: ${s.score ?? 'unscored'})`));
         return h('div', { class: 'row' }, h('span', { class: 'grow' }, `${s.name} (now: ${s.score ?? 'unscored'})`), sc,
           h('button', { onclick: async () => { try { const r = await mutate('POST', '/practical-scores', { trainee_id: sel.value, skill_id: s.skill_id, score: +sc.value }, { label: `Score “${s.name}”` }); if (!noteQueued(r)) toast('Score saved.'); sel.dispatchEvent(new Event('change')); } catch (x) { toast(errMsg(x)); } } }, 'Save score')); }),
-      t.signed_off ? h('div', { class: 'notice ok' }, 'Signed off.') : h('button', { class: 'primary', onclick: async () => {
+      t.signed_off ? h('div', { class: 'notice ok' }, 'Signed off.') : !can('training.signoff') ? null : m.status !== 'approved' ? h('div', { class: 'notice' }, 'This module must be approved before anyone can be signed off on it.') : h('button', { class: 'primary', onclick: async () => {
         try { const r = await mutate('POST', '/signoffs', { trainee_id: sel.value, module_id: m.id }, { label: `Sign off on “${m.title}”` }); if (!noteQueued(r)) toast('Signed off.'); await reload(); }
         catch (x) { body.append(h('div', { class: 'notice bad', role: 'alert' }, errMsg(x), x.data?.missing ? h('ul', {}, x.data.missing.map(t2 => h('li', {}, t2))) : null)); } } }, 'Sign off this trainee'));
   });

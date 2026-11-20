@@ -4,12 +4,12 @@ const { HttpError } = require('../lib/errors');
 const { z, text, id, url, PROVENANCE, parse, hostMatches } = require('../lib/validate');
 const { editTime, superseded } = require('../lib/sync');
 
-const EDITORS = ['admin', 'trainer', 'technician'];
 
 const pin = z.object({ id: id.optional(), x: z.number().min(0).max(1), y: z.number().min(0).max(1), label: text(120).default(''), note: text(1000).default(''),
   provenance: z.enum(PROVENANCE), source_url: url.optional() }).strict();
 
 module.exports = function panelRoutes(api, ctx) {
+  const { P } = api;
   const { db, audit } = ctx;
   const now = () => new Date().toISOString();
   const domains = () => db.prepare('SELECT domain FROM source_domains').all().map(r => r.domain);
@@ -35,7 +35,7 @@ module.exports = function panelRoutes(api, ctx) {
   });
   api.get('/panels/:id', 'any', async (req, res) => res.json({ panel: full(parse(id, req.params.id)) }));
 
-  api.post('/panels', EDITORS, async (req, res) => {
+  api.post('/panels', P('equipment.edit'), async (req, res) => {
     const b = parse(z.object({ equipment_id: id, title: text(120, 1), file_id: id }).strict(), req.body);
     if (!db.prepare('SELECT 1 FROM equipment WHERE id=? AND deleted_at IS NULL').get(b.equipment_id)) throw new HttpError(400, 'BAD_EQUIPMENT', 'Unknown equipment.');
     if (!db.prepare("SELECT 1 FROM files WHERE id=? AND purpose='photo' AND deleted_at IS NULL").get(b.file_id)) throw new HttpError(400, 'BAD_FILE', 'Choose an uploaded photo.');
@@ -47,13 +47,13 @@ module.exports = function panelRoutes(api, ctx) {
     res.status(201).json({ panel: full(pid) });
   });
 
-  api.patch('/panels/:id', EDITORS, async (req, res) => {
+  api.patch('/panels/:id', P('equipment.edit'), async (req, res) => {
     const p = panel(parse(id, req.params.id)); const b = parse(z.object({ title: text(120, 1) }).strict(), req.body);
     db.transaction(() => { db.prepare('UPDATE photo_panels SET title=? WHERE id=?').run(b.title, p.id); touch(req, p.id); audit(req, 'panel.update', 'panel', p.id); })();
     res.json({ panel: full(p.id) });
   });
 
-  api.post('/panels/:id/pins', EDITORS, async (req, res) => {
+  api.post('/panels/:id/pins', P('equipment.edit'), async (req, res) => {
     const p = panel(parse(id, req.params.id)); const b = parse(pin, req.body); checkPin(b);
     if (b.id && db.prepare('SELECT 1 FROM panel_pins WHERE id=?').get(b.id)) throw new HttpError(409, 'ID_EXISTS', 'That id already exists.');
     const xid = b.id || crypto.randomUUID(), at = editTime(req);
@@ -63,7 +63,7 @@ module.exports = function panelRoutes(api, ctx) {
     })();
     res.status(201).json({ panel: full(p.id) });
   });
-  api.patch('/pins/:id', EDITORS, async (req, res) => {
+  api.patch('/pins/:id', P('equipment.edit'), async (req, res) => {
     const cur = db.prepare('SELECT * FROM panel_pins WHERE id=?').get(parse(id, req.params.id));
     if (!cur) throw new HttpError(404, 'NOT_FOUND', 'Pin not found.');
     const b = parse(pin, req.body); checkPin(b);
@@ -78,20 +78,20 @@ module.exports = function panelRoutes(api, ctx) {
     })();
     res.json({ panel: full(cur.panel_id) });
   });
-  api.delete('/pins/:id', EDITORS, async (req, res) => {
+  api.delete('/pins/:id', P('equipment.edit'), async (req, res) => {
     const cur = db.prepare('SELECT * FROM panel_pins WHERE id=?').get(parse(id, req.params.id));
     if (!cur) throw new HttpError(404, 'NOT_FOUND', 'Pin not found.');
     db.transaction(() => { db.prepare('DELETE FROM panel_pins WHERE id=?').run(cur.id); touch(req, cur.panel_id); audit(req, 'pin.remove', 'panel', cur.panel_id, { pin_id: cur.id }); })();
     res.json({ panel: full(cur.panel_id) });
   });
 
-  api.post('/panels/:id/submit-review', EDITORS, async (req, res) => {
+  api.post('/panels/:id/submit-review', P('equipment.edit'), async (req, res) => {
     const p = panel(parse(id, req.params.id));
     if (p.status === 'approved') throw new HttpError(409, 'ALREADY_APPROVED', 'Already approved.');
     db.transaction(() => { db.prepare("UPDATE photo_panels SET status='needs_review',version=version+1,updated_by=?,updated_at=? WHERE id=?").run(req.user.id, now(), p.id); audit(req, 'panel.submit_review', 'panel', p.id); })();
     res.json({ panel: full(p.id) });
   });
-  api.post('/panels/:id/approve', ['admin'], async (req, res) => {
+  api.post('/panels/:id/approve', P('equipment.approve'), async (req, res) => {
     const p = panel(parse(id, req.params.id));
     const b = parse(z.object({ override: z.boolean().default(false), override_reason: text(500).optional(), reviewed_version: z.number().int().optional() }).strict(), req.body);
     if (b.reviewed_version !== undefined && b.reviewed_version !== p.version) throw new HttpError(409, 'STALE_REVIEW', 'This panel changed after you reviewed it. Review the latest version, then approve again.', { current_version: p.version });
@@ -106,7 +106,7 @@ module.exports = function panelRoutes(api, ctx) {
     })();
     res.json({ panel: full(p.id) });
   });
-  api.delete('/panels/:id', ['admin'], async (req, res) => {
+  api.delete('/panels/:id', P('equipment.delete'), async (req, res) => {
     const p = panel(parse(id, req.params.id));
     db.transaction(() => {
       db.prepare('UPDATE photo_panels SET deleted_at=?,updated_by=?,updated_at=? WHERE id=?').run(now(), req.user.id, now(), p.id);

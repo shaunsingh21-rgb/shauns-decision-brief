@@ -62,6 +62,7 @@ Change only these lines (use the arrow keys; **Ctrl+O, Enter** saves; **Ctrl+X**
 |---|---|
 | `DOMAIN=` | your web address **without** `https://`, e.g. `hub.yourorg.edu` |
 | `SHAREPOINT_HOSTS=` | your SharePoint address, e.g. `yourorg.sharepoint.com` (strongly recommended: only your SharePoint videos can be embedded) |
+| `MFA_ENCRYPTION_KEY=` | *(optional)* turns on **two-step sign-in** (authenticator app) for people who want it. Make the key with `openssl rand -hex 32` and paste the 64 characters. **Keep a copy in your password manager** — it is deliberately not in backups. Leave blank to keep the feature off. |
 | `BRAVE_API_KEY=` | *(optional)* web-search key. Leave blank to keep search off. |
 | `ANTHROPIC_API_KEY=` | *(optional)* AI-drafting key. Leave blank to keep AI off. |
 
@@ -88,7 +89,8 @@ It asks you to type a password (nothing shows as you type) twice. **There is no 
 1. Open `https://hub.yourorg.edu` in a browser. (If you see a certificate warning, wait two minutes and retry — the certificate is being issued. If it persists, see the table at the end.)
 2. Sign in with the username and password from 3.4, then choose a new password (12+ characters).
 3. **Admin → Official source domains:** add the manufacturer websites your team trusts (e.g. `shure.com`). Web research and "Manufacturer" items only ever use these.
-4. **Admin → Create an account** for each person. The screen shows a temporary password **once** — give it to them privately. They must change it at first sign-in. Roles: *Leader/Admin* (everything), *Trainer* (training, scoring, sign-off), *Technician* (day-to-day use), *Viewer* (read only).
+4. **Admin → Create an account** for each person. The screen shows a temporary password **once** — give it to them privately. They must change it at first sign-in.
+5. **Roles.** Four are built in: *Leader/Admin* (everything, cannot be edited), *Trainer* (writes training, scores, signs people off), *Technician* (day-to-day use, takes training), *Viewer* (read only). Under **Admin → Roles and permissions** you can **create your own** (for example “Camera Operator”, or “Reviewer” who may approve but not edit) by ticking exactly what that role may do, and change the built-in Trainer/Technician/Viewer roles (with “Reset to defaults” if you regret it). Changes apply immediately. Everyone signed in can *read* everything; permissions are for *changing* things. Details in §7.
 
 You can stop here. Backups already run every night at 02:15 server time (section 6).
 
@@ -139,9 +141,26 @@ Then continue at 3.5.
 | Someone is locked out (too many wrong tries) | Admin → **Unlock** (it also unlocks itself after 15 minutes) |
 | Someone left | Admin → **Disable** (their history stays; they can no longer sign in) |
 | Change someone's role | Admin → the role dropdown next to their name |
+| Make a new kind of role (say, someone who can approve equipment but not edit it) | Admin → Roles and permissions → **New role**, tick the permissions, save, then give it to people. Each permission has a one-line explanation. |
+| Change what a role can do | Admin → Roles and permissions → **Edit** (applies to everyone with that role straight away) |
+| Someone lost their phone (two-step sign-in) | Admin → **Reset two-step** next to their name. They can set it up again. |
+| Require two-step sign-in for a role | Admin → Roles → Edit → tick *Require two-step sign-in*. Those people must set it up before they can do anything else. (Needs `MFA_ENCRYPTION_KEY`.) |
 | See who did what | Admin → Recent activity (audit log) |
 | Check health | `docker compose exec app node scripts/doctor.js` |
 | Move content to another install | `Admin → export` / import — see `docs/BACKUP.md` (this is *not* a backup) |
+
+### Roles and permissions — what to know
+* **You can only give what you have.** Someone allowed to manage roles can only give permissions they hold themselves, and can only change roles that have no more power than their own. Someone allowed to manage people cannot reset an administrator's password, create administrators, or give anyone a more powerful role than their own. This stops a "people manager" quietly becoming an administrator. The Leader/Admin role itself cannot be edited or deleted, and there is always at least one active administrator.
+* **A role with people in it cannot be deleted** (move them first).
+* **“Take training” makes someone a trainee.** People whose role has it appear in the skill matrix and can be scored and signed off. A trainer can never sign off or score themselves, whatever their role.
+* **Sign-off needs approved material.** Nobody can be signed off on a module that is still a draft, or that was edited after approval and is waiting for review. Whoever holds *Approve training material* approves it (by default: only Leader/Admin).
+* Every role change is in the audit log with before and after.
+
+### Two-step sign-in (optional)
+Off by default and entirely voluntary. If you set `MFA_ENCRYPTION_KEY` (§3.2), anyone can turn it on under **My account** (their name at the top of the screen): they scan a picture with an authenticator app and get eight one-time recovery codes. You can also *require* it for specific roles. Things to know:
+* **The key is not in backups, on purpose** — a stolen backup alone cannot bypass the second step. Keep it in your password manager. If it is ever lost: people can still sign in with a recovery code, and you can reset people (Admin → Reset two-step, or `npm run reset-mfa -- <username>` on the server). If the key is missing at start-up the server **refuses password-only sign-in for people who enrolled** (it never silently skips the second step), and `doctor` says so.
+* Lost phone and recovery codes: Admin → **Reset two-step**. Everyone locked out including all admins: `reset-mfa` on the server.
+* It protects against stolen or guessed passwords. It is not a defence against someone tricking a person into typing a code into a fake site; Microsoft sign-in (later) is the stronger answer.
 
 ### Updating the app
 ```
@@ -168,7 +187,7 @@ Sign-in is local username + password for now. The code has a documented place fo
 | Can sign in but offline mode doesn't work on iPhone | Not using HTTPS, or opened in a Safari tab rather than the Home Screen app | Use the HTTPS address; add to Home Screen; open once online |
 | Video won't play in a lesson | SharePoint sharing/embedding settings | Use SharePoint's own **Share → Embed** link and check the video is shared with the team |
 | `doctor` says ✖ | Read the line — it says what to run | Fix, re-run `doctor` |
-| Nobody can sign in as an administrator (forgotten password, or locked out) | — | On the server: `docker compose run --rm app node scripts/reset-password.js yourusername` (without Docker: `node scripts/reset-password.js yourusername`). It asks for a new temporary password, unlocks and re-enables the account, and is recorded in the audit log. Only someone with access to the server can do this. |
+| Nobody can sign in as an administrator (forgotten password, locked out, or lost phone) | — | On the server: `docker compose run --rm app node scripts/reset-password.js yourusername` (without Docker: `node scripts/reset-password.js yourusername`). It asks for a new temporary password, unlocks and re-enables the account, and is recorded in the audit log. If their phone for two-step sign-in is also lost: `docker compose run --rm app node scripts/reset-mfa.js yourusername`. Only someone with access to the server can do either. |
 
 ---
 

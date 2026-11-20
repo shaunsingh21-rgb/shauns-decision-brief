@@ -2,7 +2,7 @@ import { h, clear, field, select, provBadge, statusBadge, PROV } from '../dom.js
 import { get, post, del, mutate } from '../api.js';
 import { can, toast, errMsg, navigate, noteQueued } from '../app.js';
 
-const EDIT = ['admin', 'trainer', 'technician'];
+const EDIT = ['equipment.edit'];
 const pct = v => Math.round(v * 100);
 
 export async function render(root, { arg }) {
@@ -94,10 +94,10 @@ export async function render(root, { arg }) {
     can(...EDIT) && h('button', { class: 'primary', onclick: () => startPlace(null) }, 'Add a pin'),
     h('button', { onclick: () => { quiz.start(); } }, 'Quiz me'),
     can(...EDIT) && panel.status === 'draft' && h('button', { onclick: run(() => mutate('POST', `/panels/${panel.id}/submit-review`, {}, { label: `Submit “${panel.title}” for review` })) }, 'Submit for review'),
-    can('admin') && panel.status !== 'approved' && !panel.verify_count && h('button', { class: 'primary', onclick: run(() => mutate('POST', `/panels/${panel.id}/approve`, { reviewed_version: panel.version }, { label: `Approve “${panel.title}”` })) }, 'Approve')),
-    can('admin') && panel.status !== 'approved' && panel.verify_count > 0 && h('div', {}, h('div', { class: 'notice' }, `${panel.verify_count} pin(s) are still VERIFY. Resolve them, or approve with an explicit override.`),
+    can('equipment.approve') && panel.status !== 'approved' && !panel.verify_count && h('button', { class: 'primary', onclick: run(() => mutate('POST', `/panels/${panel.id}/approve`, { reviewed_version: panel.version }, { label: `Approve “${panel.title}”` })) }, 'Approve')),
+    can('equipment.approve') && panel.status !== 'approved' && panel.verify_count > 0 && h('div', {}, h('div', { class: 'notice' }, `${panel.verify_count} pin(s) are still VERIFY. Resolve them, or approve with an explicit override.`),
       field('Override reason (required)', reason), h('button', { class: 'danger', onclick: run(() => mutate('POST', `/panels/${panel.id}/approve`, { override: true, override_reason: reason.value, reviewed_version: panel.version }, { label: `Approve “${panel.title}” (override)` })) }, 'Approve anyway (override)')),
-    can('admin') && h('p', {}, h('button', { class: 'danger', onclick: async () => { if (confirm('Delete this panel?')) { try { await del(`/panels/${panel.id}`); navigate(`#/equipment/${panel.equipment_id}`); } catch (x) { toast(errMsg(x)); } } } }, 'Delete panel')));
+    can('equipment.delete') && h('p', {}, h('button', { class: 'danger', onclick: async () => { if (confirm('Delete this panel?')) { try { await del(`/panels/${panel.id}`); navigate(`#/equipment/${panel.equipment_id}`); } catch (x) { toast(errMsg(x)); } } } }, 'Delete panel')));
 
   // ---- Quiz me: pins from Manufacturer or Team only (never AI or VERIFY); the answer reveals its source ----
   const quiz = (() => {

@@ -30,6 +30,9 @@ module.exports = function localProvider({ db, config }) {
     hashPassword: pw => argon2.hash(pw, opts),
     verifyPassword: (hash, pw) => argon2.verify(hash, pw),
     clearFailures: key => db.prepare('DELETE FROM login_failures WHERE key = ?').run(key.toLowerCase()),
+    // The second step (authenticator code) shares the sign-in lockout, so six-digit codes cannot be guessed.
+    lockStatus(username) { const st = lockState(String(username).toLowerCase()); if (st && st.locked_until) return { locked: true, minutes: Math.max(1, Math.ceil((Date.parse(st.locked_until) - Date.now()) / 60000)) }; return { locked: false }; },
+    noteFailure: username => recordFailure(String(username).toLowerCase()),
 
     // Contract: resolve to a users row, or throw HttpError. Never reveals whether the username exists.
     async authenticate(_req, { username, password }) {

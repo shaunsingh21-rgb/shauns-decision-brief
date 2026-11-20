@@ -25,6 +25,8 @@ module.exports = function loadConfig(overrides = {}) {
     maxVideoMb: int(env.MAX_VIDEO_MB, 200),
     // Comma-separated SharePoint hosts allowed in embeds (e.g. moody.sharepoint.com). Empty = any *.sharepoint.com.
     sharepointHosts: (env.SHAREPOINT_HOSTS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean),
+    // 32-byte key (64 hex characters) that encrypts two-step sign-in secrets at rest. Unset = two-step sign-in is off. Make one with: openssl rand -hex 32
+    mfaEncryptionKey: env.MFA_ENCRYPTION_KEY || null,
     anthropicModel: env.ANTHROPIC_MODEL || 'claude-sonnet-5-5',
     aiRatePerHour: int(env.AI_RATE_PER_HOUR, 30),
     // Per-user limits on sensitive actions (the global per-IP limit and login lockout are separate).

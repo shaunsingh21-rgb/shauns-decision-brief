@@ -14,6 +14,8 @@ A backup is a folder named like `avl-backup-20261120-021500` containing:
 
 It **does contain people's account records and password hashes** (not passwords). Store it as carefully as the server itself.
 
+**It does not contain `MFA_ENCRYPTION_KEY`** (if you use two-step sign-in), by design: the authenticator secrets in a backup are encrypted with that key, which lives only in `.env`. **Keep a copy of the key in your password manager.** After a restore onto a new server, put the same key back in `.env`. If you cannot, nobody can use authenticator codes — people can still use their recovery codes, and an administrator can reset them (Admin → Reset two-step, or `reset-mfa`).
+
 ## 2. How backups run
 
 * **Nightly at 02:15** (server time), automatically — by the `backup` container with Docker, or by the `avl-hub-backup.timer` without Docker.
@@ -78,7 +80,8 @@ Write the date you did this at the top of your own notes. Repeat after any big c
 | Situation | What to do |
 |---|---|
 | **Nobody can sign in as an administrator** (forgotten password, locked, disabled) | On the server: `docker compose run --rm app node scripts/reset-password.js <username>` (systemd: `sudo -u avl node scripts/reset-password.js <username>`). Sets a new temporary password, unlocks and re-enables the account, forces a change at next sign-in, and is written to the audit log. Needs access to the server, so it cannot be done from the website. |
-| **Server destroyed** | New server → `DEPLOY.md` sections 2–3 (skip creating an administrator) → restore the newest off-server backup (section 3). |
+| **Server destroyed** | New server → `DEPLOY.md` sections 2–3 (skip creating an administrator; use the **same** `MFA_ENCRYPTION_KEY` as before if you had one) → restore the newest off-server backup (section 3). |
+| **Lost phone, no recovery codes** | Another administrator: Admin → **Reset two-step** next to their name. If it is the only administrator: on the server, `docker compose run --rm app node scripts/reset-mfa.js <username>` (without Docker: `sudo -u avl node scripts/reset-mfa.js <username>`). |
 | **Someone deleted or broke content** | Restore a backup to a *spare* machine (section 4), copy what you need by hand (or use export from there and import here). |
 | **Backup says `BACKUP FAILED`** | Read the message; the usual causes are a full disk or a wrong path. Fix it, run `backup` by hand, and check `doctor`. Until a backup succeeds, you have no new protection. |
 | **Disk almost full** | `doctor` warns under 2 GB free. Delete old `before-restore-…` folders, lower `BACKUP_KEEP`, or ask IT for more disk. |

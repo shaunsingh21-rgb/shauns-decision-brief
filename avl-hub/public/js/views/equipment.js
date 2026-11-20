@@ -3,7 +3,7 @@ import { get, post, put, del, upload, mutate } from '../api.js';
 import { cleanPhoto, photoPicker } from '../media.js';
 import { can, toast, errMsg, navigate, noteQueued } from '../app.js';
 
-const EDIT = ['admin', 'trainer', 'technician'];
+const EDIT = ['equipment.edit'];
 
 export async function render(root, { arg }) {
   return arg ? detail(root, arg) : list(root);
@@ -49,7 +49,7 @@ async function detail(root, id) {
       can(...EDIT) && e.status !== 'approved' && e.status !== 'needs_review' && h('button', { onclick: act(() => mutate('POST', `/equipment/${id}/submit-review`, {}, { label: `Submit “${e.name}” for review` })) }, 'Submit for review'),
       can(...EDIT) && e.status === 'draft' && null));
 
-  const approve = can('admin') && e.status !== 'approved' && approvalPanel(e, id, reload);
+  const approve = can('equipment.approve') && e.status !== 'approved' && approvalPanel(e, id, reload);
 
   const log = h('div', { class: 'card' }, h('h2', {}, 'Approval history'), e.approvals.length ? h('ul', {}, e.approvals.map(a =>
     h('li', {}, `${fmtDate(a.created_at)}${a.override ? ' — approved with override: ' + a.override_reason : ' — approved'}`))) : h('p', { class: 'hint' }, 'Not approved yet.'));
@@ -59,7 +59,7 @@ async function detail(root, id) {
     h('p', {}, `${mine.length} update record(s) · ${theirs.length} issue/lesson(s). `, h('a', { href: '#/updates' }, 'Updates'), ' · ', h('a', { href: '#/issues' }, 'Issues & lessons')));
 
   root.append(head, specs, approve, panelsCard(id, panels, reload), docsCard(id, docs, reload), installAssistant(id, steps, done, e), related, log,
-    can('admin') && h('p', {}, h('button', { class: 'danger', onclick: async () => { if (confirm('Delete this equipment record?')) { try { await del(`/equipment/${id}`); navigate('#/equipment'); } catch (x) { toast(errMsg(x)); } } } }, 'Delete')));
+    can('equipment.delete') && h('p', {}, h('button', { class: 'danger', onclick: async () => { if (confirm('Delete this equipment record?')) { try { await del(`/equipment/${id}`); navigate('#/equipment'); } catch (x) { toast(errMsg(x)); } } } }, 'Delete')));
 }
 
 function approvalPanel(e, id, reload) {
@@ -160,6 +160,6 @@ function panelsCard(id, panels, reload) {
 function docsCard(id, docs, reload) {
   const pick = h('input', { type: 'file', accept: 'application/pdf', 'aria-label': 'Choose a PDF' });
   return h('div', { class: 'card' }, h('h2', {}, 'Documents'), docs.length ? h('ul', {}, docs.map(d => h('li', {}, h('a', { href: `/api/files/${d.id}` }, d.name), ` (${Math.max(1, Math.round(d.size / 1024))} KB)`,
-    can('admin', 'trainer') && [' ', h('button', { class: 'danger', 'aria-label': `Delete ${d.name}`, onclick: async () => { if (confirm(`Delete ${d.name}?`)) { try { await del(`/files/${d.id}`); await reload(); } catch (x) { toast(errMsg(x)); } } } }, 'Delete')]))) : h('p', { class: 'hint' }, 'No documents yet (PDF only).'),
+    can('files.delete') && [' ', h('button', { class: 'danger', 'aria-label': `Delete ${d.name}`, onclick: async () => { if (confirm(`Delete ${d.name}?`)) { try { await del(`/files/${d.id}`); await reload(); } catch (x) { toast(errMsg(x)); } } } }, 'Delete')]))) : h('p', { class: 'hint' }, 'No documents yet (PDF only).'),
     can(...EDIT) && h('div', { class: 'row' }, pick, h('button', { onclick: async () => { const f = pick.files[0]; if (!f) return toast('Choose a PDF first.'); try { await upload(f, { purpose: 'document', equipment_id: id }); toast('Uploaded.'); await reload(); } catch (x) { toast(errMsg(x)); } } }, 'Upload PDF')));
 }

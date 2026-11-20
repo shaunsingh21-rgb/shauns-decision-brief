@@ -4,16 +4,15 @@ const { HttpError } = require('../lib/errors');
 const { z, text, id, url, parse } = require('../lib/validate');
 const { editTime, superseded } = require('../lib/sync');
 
-const WRITERS = ['admin', 'trainer', 'technician'];
-const REVIEWERS = ['admin', 'trainer'];
 
 module.exports = function issueRoutes(api, ctx) {
+  const { P } = api;
   const { db, audit } = ctx;
   const now = () => new Date().toISOString();
   const eqOk = eid => { if (eid && !db.prepare('SELECT 1 FROM equipment WHERE id=? AND deleted_at IS NULL').get(eid)) throw new HttpError(400, 'BAD_EQUIPMENT', 'Unknown equipment.'); };
 
   api.get('/issues', 'any', async (_req, res) => res.json({ issues: db.prepare('SELECT * FROM issues ORDER BY updated_at DESC').all() }));
-  api.post('/issues', WRITERS, async (req, res) => {
+  api.post('/issues', P('issues.write'), async (req, res) => {
     const b = parse(z.object({ id: id.optional(), kind: z.enum(['issue', 'lesson']), title: text(160, 1), body: text(4000).optional(), equipment_id: id.optional() }).strict(), req.body);
     eqOk(b.equipment_id);
     if (b.id && db.prepare('SELECT 1 FROM issues WHERE id=?').get(b.id)) throw new HttpError(409, 'ID_EXISTS', 'That id already exists.');
@@ -25,11 +24,11 @@ module.exports = function issueRoutes(api, ctx) {
     })();
     res.status(201).json({ issue: db.prepare('SELECT * FROM issues WHERE id=?').get(iid) });
   });
-  // Technicians may edit only their own entries; trainers/admins may edit any.
-  api.patch('/issues/:id', WRITERS, async (req, res) => {
+  // People may edit only their own entries unless their role can manage everyone's.
+  api.patch('/issues/:id', P('issues.write'), async (req, res) => {
     const cur = db.prepare('SELECT * FROM issues WHERE id=?').get(parse(id, req.params.id));
     if (!cur) throw new HttpError(404, 'NOT_FOUND', 'Not found.');
-    if (cur.created_by !== req.user.id && !REVIEWERS.includes(req.user.role)) throw new HttpError(403, 'FORBIDDEN', 'You can only edit your own entries.');
+    if (cur.created_by !== req.user.id && !req.permissions.has('issues.manage')) throw new HttpError(403, 'FORBIDDEN', 'You can only edit your own entries.');
     const b = parse(z.object({ title: text(160, 1).optional(), body: text(4000).optional(), status: z.enum(['open', 'resolved']).optional() }).strict(), req.body);
     const at = editTime(req);
     if (superseded(cur.edit_at, at)) {
@@ -46,7 +45,7 @@ module.exports = function issueRoutes(api, ctx) {
 
   // ---- update management: record + track only. Nothing here ever installs anything. ----
   api.get('/updates', 'any', async (_req, res) => res.json({ updates: db.prepare('SELECT * FROM equipment_updates ORDER BY created_at DESC').all() }));
-  api.post('/updates', WRITERS, async (req, res) => {
+  api.post('/updates', P('updates.record'), async (req, res) => {
     const b = parse(z.object({ id: id.optional(), equipment_id: id, kind: z.enum(['firmware', 'software', 'other']), available_version: text(60, 1), notes: text(2000).optional(), source_url: url.optional() }).strict(), req.body);
     eqOk(b.equipment_id);
     if (b.id && db.prepare('SELECT 1 FROM equipment_updates WHERE id=?').get(b.id)) throw new HttpError(409, 'ID_EXISTS', 'That id already exists.');
@@ -58,7 +57,7 @@ module.exports = function issueRoutes(api, ctx) {
     })();
     res.status(201).json({ id: uid });
   });
-  api.patch('/updates/:id/status', WRITERS, async (req, res) => {
+  api.patch('/updates/:id/status', P('updates.record'), async (req, res) => {
     const cur = db.prepare('SELECT * FROM equipment_updates WHERE id=?').get(parse(id, req.params.id));
     if (!cur) throw new HttpError(404, 'NOT_FOUND', 'Not found.');
     const b = parse(z.object({ status: z.enum(['available', 'scheduled', 'installed_by_human', 'skipped']) }).strict(), req.body);

@@ -2,7 +2,7 @@ import { h, clear, field, select, fmtDate } from '../dom.js';
 import { get, mutate } from '../api.js';
 import { can, toast, errMsg, noteQueued } from '../app.js';
 
-const W = ['admin', 'trainer', 'technician'];
+const W = ['updates.record'];
 const ST = { available: 'Available', scheduled: 'Scheduled', installed_by_human: 'Installed (by a person)', skipped: 'Skipped' };
 
 export async function render(root) {

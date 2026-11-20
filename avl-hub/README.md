@@ -16,6 +16,7 @@ A shared, installable web app for the ITS Events AV team: equipment library with
     npm run doctor                                  # plain-language health check
     npm run backup  /  npm run restore -- <folder>  # see docs/BACKUP.md
     npm run reset-password -- <username>            # emergency, server access only
+    npm run reset-mfa -- <username>                 # emergency: lost phone and recovery codes
     npm test  /  npm run test:e2e  /  npm run test:all
 
 ---

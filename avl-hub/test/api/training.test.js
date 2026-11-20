@@ -14,6 +14,7 @@ before(async () => {
   for (let i = 0; i < 5; i++) qids.push((await tc.post(`/api/modules/${mod.id}/questions`, { prompt: `SAMPLE question ${i}`, options: ['A', 'B', 'C'], correct_index: 1 })).body.id);
   skills = [];
   for (const n of ['SAMPLE skill one', 'SAMPLE skill two']) skills.push((await tc.post(`/api/modules/${mod.id}/skills`, { name: n })).body.id);
+  await ac.post(`/api/modules/${mod.id}/approve`);                        // sign-off requires approved material
 });
 after(() => h.close());
 const answers = (nCorrect) => Object.fromEntries(qids.map((q, i) => [q, i < nCorrect ? 1 : 0]));
@@ -77,10 +78,25 @@ test('sign-offs and audit entries are append-only at the database level', () => 
 });
 
 test('editing approved training material returns it to Needs Review', async () => {
-  assert.equal((await ac.post(`/api/modules/${mod.id}/approve`)).body.module.status, 'approved');
   assert.equal((await tc.post(`/api/modules/${mod.id}/approve`)).status, 403, 'trainers cannot approve');
   const r = await tc.patch(`/api/modules/${mod.id}`, { summary: 'SAMPLE edit' });
   assert.equal(r.body.module.status, 'needs_review');
+});
+
+test('sign-off is refused unless the module is Approved: drafts, and approved modules edited since, both block it', async () => {
+  const m = (await tc.post('/api/modules', { title: 'SAMPLE draft module', level: 1 })).body.module;
+  const q = (await tc.post(`/api/modules/${m.id}/questions`, { prompt: 'SAMPLE q', options: ['a', 'b'], correct_index: 1 })).body.id;
+  const sk = (await tc.post(`/api/modules/${m.id}/skills`, { name: 'SAMPLE skill' })).body.id;
+  await kc.post(`/api/modules/${m.id}/quiz-attempts`, { answers: { [q]: 1 } }); await tc.post('/api/practical-scores', { trainee_id: tech.id, skill_id: sk, score: 3 });
+  const draft = await t2c.post('/api/signoffs', { trainee_id: tech.id, module_id: m.id });
+  assert.equal(draft.status, 409); assert.equal(draft.body.error.code, 'MODULE_NOT_APPROVED'); assert.match(draft.body.error.message, /still a draft/);
+  await tc.post(`/api/modules/${m.id}/submit-review`);
+  assert.match((await t2c.post('/api/signoffs', { trainee_id: tech.id, module_id: m.id })).body.error.message, /waiting for review/);
+  await ac.post(`/api/modules/${m.id}/approve`);
+  await tc.patch(`/api/modules/${m.id}`, { summary: 'SAMPLE changed after approval' });                       // back to Needs Review
+  assert.equal((await t2c.post('/api/signoffs', { trainee_id: tech.id, module_id: m.id })).body.error.code, 'MODULE_NOT_APPROVED');
+  await ac.post(`/api/modules/${m.id}/approve`);
+  assert.equal((await t2c.post('/api/signoffs', { trainee_id: tech.id, module_id: m.id })).status, 201, 'allowed once approved');
 });
 
 test('progress of other people is private to learners; trainers can view', async () => {

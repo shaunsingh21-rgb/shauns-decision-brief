@@ -3,10 +3,10 @@ const crypto = require('crypto');
 const { HttpError } = require('../lib/errors');
 const { z, text, id, url, parse, hostMatches } = require('../lib/validate');
 
-const EDITORS = ['admin', 'trainer', 'technician'];
 
 // Installation assistant: an ordered checklist per equipment item. Steps are never invented by the server.
 module.exports = function installRoutes(api, ctx) {
+  const { P } = api;
   const { db, audit } = ctx;
   const now = () => new Date().toISOString();
   const live = eid => { const e = db.prepare('SELECT * FROM equipment WHERE id=? AND deleted_at IS NULL').get(eid); if (!e) throw new HttpError(404, 'NOT_FOUND', 'Equipment not found.'); return e; };
@@ -17,7 +17,7 @@ module.exports = function installRoutes(api, ctx) {
     res.json({ steps: steps(eid), done: db.prepare('SELECT step_id FROM install_progress WHERE user_id=? AND step_id IN (SELECT id FROM install_steps WHERE equipment_id=?)').all(req.user.id, eid).map(r => r.step_id) });
   });
 
-  api.put('/equipment/:id/install-steps', EDITORS, async (req, res) => {
+  api.put('/equipment/:id/install-steps', P('equipment.edit'), async (req, res) => {
     const eid = parse(id, req.params.id); const e = live(eid);
     const b = parse(z.object({ steps: z.array(z.object({ text: text(600, 1), provenance: z.enum(['manufacturer', 'team', 'ai']), source_url: url.optional() }).strict()).max(60) }).strict(), req.body);
     const domains = db.prepare('SELECT domain FROM source_domains').all().map(r => r.domain);
@@ -32,7 +32,7 @@ module.exports = function installRoutes(api, ctx) {
     res.json({ steps: steps(eid) });
   });
 
-  api.put('/equipment/:id/install-progress', EDITORS, async (req, res) => {
+  api.put('/equipment/:id/install-progress', P('equipment.edit'), async (req, res) => {
     const eid = parse(id, req.params.id); live(eid);
     const b = parse(z.object({ done: z.array(id).max(60) }).strict(), req.body);
     const valid = new Set(steps(eid).map(s => s.id));

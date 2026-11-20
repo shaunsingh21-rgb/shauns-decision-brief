@@ -17,6 +17,13 @@ async function harness(overrides = {}) {
       .run(id, username, `Sample ${username}`, role, await h.ctx.auth.provider.hashPassword(password), +mustChange, now, now);
     return { id, username, role, password };
   }
+  // A custom role made directly in the database (the API route for this has its own tests).
+  function makeRole(permissions, name = 'Role ' + crypto.randomBytes(3).toString('hex'), { requireMfa = false } = {}) {
+    const id = crypto.randomUUID(), now = new Date().toISOString();
+    db.prepare('INSERT INTO roles (id,name,description,is_system,require_mfa,created_at,updated_at) VALUES (?,?,?,0,?,?,?)').run(id, name, '', +requireMfa, now, now);
+    for (const p of permissions) db.prepare('INSERT INTO role_permissions VALUES (?,?)').run(id, p);
+    return id;
+  }
   // Minimal cookie-jar client. Always sends the CSRF header unless told otherwise.
   function client() {
     let cookie = '';
@@ -44,7 +51,7 @@ async function harness(overrides = {}) {
     return c;
   }
   async function as(user) { const c = client(); const r = await c.login(user); if (r.status !== 200) throw new Error('login failed ' + JSON.stringify(r.body)); return c; }
-  return { ...h, base, db, makeUser, client, as, PW,
+  return { ...h, base, db, makeUser, makeRole, client, as, PW,
     // close(true) keeps the data folder on disk (for tests that restore or inspect it afterwards).
     async close(keep = false) { await new Promise(r => server.close(r)); h.close(); if (!keep) fs.rmSync(dir, { recursive: true, force: true }); }, dir };
 }

@@ -4,6 +4,7 @@ const fs = require('fs'), path = require('path');
 const loadConfig = require('../server/config');
 const { open, migrate } = require('../server/db');
 const { listBackups } = require('./lib/backup');
+const { keyBuf } = require('../server/lib/totp');
 const c = loadConfig(); let bad = 0;
 const say = (lvl, msg) => { if (lvl === 'x') bad++; console.log(`${{ ok: '✔', warn: '⚠', x: '✖' }[lvl === 'x' ? 'x' : lvl]} ${msg}`); };
 const major = parseInt(process.versions.node, 10);
@@ -16,6 +17,10 @@ try {
   say(db.pragma('quick_check', { simple: true }) === 'ok' ? 'ok' : 'x', 'Database integrity check');
   const admins = db.prepare("SELECT COUNT(*) n FROM users WHERE role='admin' AND disabled=0").get().n;
   admins ? say('ok', `${admins} active administrator account(s)`) : say('x', 'No administrator exists yet. Run:  npm run create-admin -- <username> "<Your Name>"');
+  const enrolled = db.prepare('SELECT COUNT(*) n FROM user_mfa WHERE enabled_at IS NOT NULL').get().n, requiring = db.prepare('SELECT COUNT(*) n FROM roles WHERE require_mfa=1').get().n;
+  let keyOk = false; if (c.mfaEncryptionKey) { try { keyBuf(c.mfaEncryptionKey); keyOk = true; } catch (e) { say('x', 'MFA_ENCRYPTION_KEY is set but invalid: ' + e.message); } }
+  if (keyOk) say('ok', `Two-step sign-in is available (${enrolled} ${enrolled === 1 ? 'person has' : 'people have'} it on; ${requiring} role(s) require it)`);
+  else if (!c.mfaEncryptionKey) say(enrolled || requiring ? 'x' : 'warn', enrolled || requiring ? `Two-step sign-in is in use (${enrolled} people, ${requiring} roles) but MFA_ENCRYPTION_KEY is not set: those people CANNOT sign in until the key is restored.` : 'Two-step sign-in is off (optional). To offer it, set MFA_ENCRYPTION_KEY (see .env.example).');
   const sources = db.prepare('SELECT COUNT(*) n FROM source_domains').get().n;
   say(sources ? 'ok' : 'warn', sources ? `${sources} official source domain(s) listed` : 'No official source domains yet (Admin → Official source domains). Web research stays off until you add some.');
   db.close();

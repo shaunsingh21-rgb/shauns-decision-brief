@@ -4,12 +4,12 @@ const rateLimit = require('express-rate-limit');
 const { HttpError } = require('../lib/errors');
 const { z, text, parse, hostMatches } = require('../lib/validate');
 
-const EDITORS = ['admin', 'trainer', 'technician'];
 const SYSTEM = `You help AV technicians write short equipment notes. Use ONLY the source text provided. \
 Never invent specifications, model numbers, ratings, URLs or procedures. If something is not stated in the provided text, \
 list it under "unknown" instead of guessing. Reply with JSON only: {"summary": string, "unknown": string[]}.`;
 
 module.exports = function externalRoutes(api, ctx) {
+  const { P } = api;
   const { db, config, audit } = ctx;
   const limiter = rateLimit({ windowMs: 3600000, limit: config.aiRatePerHour, standardHeaders: true, legacyHeaders: false,
     keyGenerator: req => req.user.id,
@@ -17,7 +17,7 @@ module.exports = function externalRoutes(api, ctx) {
   const domains = () => db.prepare('SELECT domain FROM source_domains ORDER BY domain').all().map(r => r.domain);
 
   // Official sources only: the query is restricted to admin-listed domains AND results are re-filtered here.
-  api.post('/research', EDITORS, limiter, async (req, res) => {
+  api.post('/research', P('research.use'), limiter, async (req, res) => {
     const b = parse(z.object({ query: text(200, 3) }).strict(), req.body);
     if (!config.braveApiKey) throw new HttpError(503, 'NOT_CONFIGURED', 'Web search is not configured on this server (BRAVE_API_KEY).');
     const list = domains().slice(0, 10);
@@ -37,7 +37,7 @@ module.exports = function externalRoutes(api, ctx) {
   });
 
   // The draft is returned labelled "ai" and is NEVER saved or approved here; a human must accept it into a record.
-  api.post('/ai/draft', EDITORS, limiter, async (req, res) => {
+  api.post('/ai/draft', P('research.use'), limiter, async (req, res) => {
     const b = parse(z.object({ source_text: text(6000, 10), purpose: z.enum(['description', 'install_notes']).default('description') }).strict(), req.body);
     if (!config.anthropicApiKey) throw new HttpError(503, 'NOT_CONFIGURED', 'AI drafting is not configured on this server (ANTHROPIC_API_KEY).');
     const ask = b.purpose === 'install_notes' ? 'Draft short setup/installation notes' : 'Draft a two-sentence plain description';

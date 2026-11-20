@@ -73,7 +73,7 @@ test('the installed app OPENS OFFLINE after the first load, and shows saved data
   await page.getByRole('heading', { name: 'SAMPLE Stage Box' }).waitFor(); await page.getByText('SAMPLE step one').waitFor();
   for (const [link, heading] of [['Training', 'Training'], ['Issues & lessons', 'Issues & lessons learned'], ['Updates', 'Update management']]) { await page.getByRole('link', { name: link, exact: true }).click(); await page.getByRole('heading', { name: heading, exact: true }).waitFor(); }
   // things that truly need a connection say so plainly instead of failing mysteriously
-  await page.getByRole('link', { name: 'Admin' }).click(); await page.getByRole('heading', { name: 'Admin', exact: true }).waitFor();
+  await page.getByRole('link', { name: 'Admin', exact: true }).click(); await page.getByRole('heading', { name: 'Admin', exact: true }).waitFor();
   await page.getByText('Create an account').click(); await page.getByLabel('Username').fill('someone'); await page.getByLabel('Display name').fill('Some One');
   await page.getByRole('button', { name: 'Create', exact: true }).click(); await page.getByText(/needs a connection/).waitFor();
   await online(context, page); await sync(page).filter({ hasText: 'All changes saved' }).waitFor();
@@ -158,6 +158,7 @@ test('sign-offs queued offline are append-only events: valid ones are recorded u
   const m = (await tc.post('/api/modules', { title: 'SAMPLE offline signoff', level: 1 })).body.module;
   const q = (await tc.post(`/api/modules/${m.id}/questions`, { prompt: 'SAMPLE q', options: ['a', 'b'], correct_index: 1 })).body.id;
   const sk = (await tc.post(`/api/modules/${m.id}/skills`, { name: 'SAMPLE skill' })).body.id;
+  await (await h.as(boss)).post(`/api/modules/${m.id}/approve`);
   const gc = await h.as(good); await gc.post(`/api/modules/${m.id}/quiz-attempts`, { answers: { [q]: 1 } }); await tc.post('/api/practical-scores', { trainee_id: good.id, skill_id: sk, score: 3 });
   const { page, context } = await open('coach');
   await page.evaluate(() => navigator.serviceWorker.ready); await waitCached(page, `/modules/${m.id}`, `/progress/${good.id}`, `/progress/${bad.id}`);

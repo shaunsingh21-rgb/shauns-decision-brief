@@ -87,6 +87,11 @@ test('training: technician takes quiz; trainer scores + signs off; trainer canno
   const m = (await tc.post('/api/modules', { title: 'SAMPLE: Level 1 basics', level: 1, summary: 'SAMPLE module' })).body.module;
   for (let i = 0; i < 5; i++) await tc.post(`/api/modules/${m.id}/questions`, { prompt: `SAMPLE question ${i + 1}`, options: ['Wrong', 'Right'], correct_index: 1 });
   await tc.post(`/api/modules/${m.id}/skills`, { name: 'SAMPLE skill' });
+  const draftPage = await newPage(); await signIn(draftPage, 'coach');                                                  // a Draft module cannot be signed off, and the screen says so
+  await draftPage.getByRole('link', { name: 'Training' }).click(); await draftPage.getByRole('link', { name: /SAMPLE: Level 1 basics/ }).click();
+  await draftPage.getByRole('heading', { name: 'Trainer: score and sign off' }).waitFor(); await draftPage.getByLabel('Trainee').selectOption({ label: 'Sample tina' });
+  await draftPage.getByText('This module must be approved before anyone can be signed off on it.').waitFor(); assert.equal(await draftPage.getByRole('button', { name: 'Sign off this trainee' }).count(), 0); await draftPage.context().close();
+  await (await h.as(await h.makeUser('admin', 'approver'))).post(`/api/modules/${m.id}/approve`);
 
   const tp = await newPage(); await signIn(tp, 'tina');
   await tp.getByRole('link', { name: 'Training' }).click(); await tp.getByRole('link', { name: /SAMPLE: Level 1 basics/ }).click();
@@ -111,7 +116,7 @@ test('training: technician takes quiz; trainer scores + signs off; trainer canno
   const vp = await newPage(); await signIn(vp, 'vic');
   await vp.getByRole('heading', { name: 'Equipment library' }).waitFor();
   assert.equal(await vp.getByRole('link', { name: 'Add equipment' }).count(), 0);
-  assert.equal(await vp.getByRole('link', { name: 'Admin' }).count(), 0);
+  assert.equal(await vp.getByRole('link', { name: 'Admin', exact: true }).count(), 0);
   await vp.context().close();
 });
 

@@ -117,6 +117,7 @@ test('sign-offs and approvals are append-only, attributed to the signed-in user,
   const m = (await tc.post('/api/modules', { title: 'SAMPLE signoff module', level: 1 })).body.module;
   const q = await tc.post(`/api/modules/${m.id}/questions`, { prompt: 'SAMPLE q', options: ['a', 'b'], correct_index: 1 });
   const sk = (await tc.post(`/api/modules/${m.id}/skills`, { name: 'SAMPLE skill' })).body.id;
+  await ac.post(`/api/modules/${m.id}/approve`);
   const tr = await h.as(trainee);
   await tr.post(`/api/modules/${m.id}/quiz-attempts`, { answers: { [q.body.id]: 1 } });
   await tc.post('/api/practical-scores', { trainee_id: trainee.id, skill_id: sk, score: 3 });
