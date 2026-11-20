@@ -16,7 +16,7 @@ function createApp(overrides = {}) {
   const config = loadConfig(overrides);
   const db = open(config.dbPath);
   migrate(db);
-  const ctx = { config, db, audit: makeAudit(db) };
+  const ctx = { config, db, audit: makeAudit(db), fetch: overrides.fetchImpl || globalThis.fetch };
   ctx.auth = createAuth(ctx);
 
   const app = express();
@@ -24,7 +24,7 @@ function createApp(overrides = {}) {
   if (config.trustProxy) app.set('trust proxy', config.trustProxy);
   app.use(helmet({
     contentSecurityPolicy: { directives: {
-      defaultSrc: ["'self'"], scriptSrc: ["'self'"], styleSrc: ["'self'"],
+      defaultSrc: ["'self'"], scriptSrc: ["'self'", "'wasm-unsafe-eval'"], workerSrc: ["'self'", 'blob:'], styleSrc: ["'self'"],
       imgSrc: ["'self'", 'data:', 'blob:'], mediaSrc: ["'self'", 'blob:'], connectSrc: ["'self'"],
       frameSrc: ['https://*.sharepoint.com'], objectSrc: ["'none'"], baseUri: ["'self'"], formAction: ["'self'"], frameAncestors: ["'none'"],
       ...(config.production ? { upgradeInsecureRequests: [] } : { upgradeInsecureRequests: null }),
@@ -38,7 +38,7 @@ function createApp(overrides = {}) {
     handler: (_req, res) => res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many requests. Slow down.' } }) }));
   app.use('/api', express.json({ limit: '256kb' }), (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); },
     session(ctx), csrf, api.router);
-  for (const r of ['auth', 'users', 'equipment', 'training', 'issues']) require(`./routes/${r}`)(api, ctx);
+  for (const r of ['auth', 'users', 'equipment', 'training', 'issues', 'install', 'external']) require(`./routes/${r}`)(api, ctx);
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'NOT_FOUND', 'No such endpoint.')));
 
   const pub = path.join(__dirname, '..', 'public');

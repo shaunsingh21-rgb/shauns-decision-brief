@@ -30,7 +30,7 @@ async function harness(overrides = {}) {
         let json = null; try { json = await res.json(); } catch {}
         return { status: res.status, body: json, setCookie: sc };
       },
-      get: (p) => c.req('GET', p), post: (p, b = {}) => c.req('POST', p, b), patch: (p, b = {}) => c.req('PATCH', p, b), del: (p) => c.req('DELETE', p),
+      get: (p) => c.req('GET', p), post: (p, b = {}) => c.req('POST', p, b), patch: (p, b = {}) => c.req('PATCH', p, b), put: (p, b = {}) => c.req('PUT', p, b), del: (p) => c.req('DELETE', p),
       async login(u, password = PW) { return c.post('/api/auth/login', { username: u.username || u, password }); },
       get cookie() { return cookie; }, set cookie(v) { cookie = v; },
     };

@@ -21,6 +21,8 @@ module.exports = function loadConfig(overrides = {}) {
     // Used only by server-side features in later phases; never sent to the client.
     braveApiKey: env.BRAVE_API_KEY || null,
     anthropicApiKey: env.ANTHROPIC_API_KEY || null,
+    anthropicModel: env.ANTHROPIC_MODEL || 'claude-sonnet-5-5',
+    aiRatePerHour: int(env.AI_RATE_PER_HOUR, 30),
     ...overrides,
   };
 };
