@@ -1,5 +1,25 @@
 # AVL Tech Training & Equipment Hub
 
+A shared, installable web app for the ITS Events AV team: equipment library with sourced specs, five-level training with quizzes and trainer sign-off, installation assistant, update tracking, issues and lessons, photo panels, lesson videos, skill matrix — usable offline.
+
+| Read this | If you are |
+|---|---|
+| [`docs/DEPLOY.md`](docs/DEPLOY.md) | the team leader putting it on a server (plain language) |
+| [`docs/BACKUP.md`](docs/BACKUP.md) | restoring, practising a restore, or in an emergency |
+| [`docs/DECISIONS.md`](docs/DECISIONS.md) | reviewing what was decided, the limits, and the open questions |
+| [`docs/PLAN.md`](docs/PLAN.md) | curious about the original Phase 1 plan (DECISIONS.md supersedes it where they differ) |
+
+## Everyday commands
+    npm install
+    npm run create-admin -- yourname "Your Name"   # one time; hidden password prompt; refuses if an admin exists
+    npm start                                       # http://localhost:3000
+    npm run doctor                                  # plain-language health check
+    npm run backup  /  npm run restore -- <folder>  # see docs/BACKUP.md
+    npm run reset-password -- <username>            # emergency, server access only
+    npm test  /  npm run test:e2e  /  npm run test:all
+
+---
+## Developer notes
 Phases 2–3 of `docs/PLAN.md`: backend plus the web front end (vanilla ES modules, no build step).
 
     npm install

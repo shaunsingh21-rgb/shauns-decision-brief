@@ -9,6 +9,7 @@ const cols = 'id,username,display_name,role,must_change_password,auth_provider,d
 
 module.exports = function userRoutes(api, ctx) {
   const { db, config, audit, auth } = ctx;
+  const limits = require('../middleware/limits')(config);
   const get = uid => db.prepare(`SELECT ${cols} FROM users WHERE id=?`).get(uid);
   const activeAdmins = () => db.prepare("SELECT COUNT(*) n FROM users WHERE role='admin' AND disabled=0").get().n;
   const need = uid => { const u = get(uid); if (!u) throw new HttpError(404, 'NOT_FOUND', 'User not found.'); return u; };
@@ -19,7 +20,7 @@ module.exports = function userRoutes(api, ctx) {
   api.get('/people', 'any', async (_req, res) =>
     res.json({ people: db.prepare('SELECT id,display_name,role FROM users WHERE disabled=0 ORDER BY display_name').all() }));
 
-  api.post('/users', ADMIN, async (req, res) => {
+  api.post('/users', ADMIN, limits.sensitive, async (req, res) => {
     const b = parse(z.object({ username, display_name: text(80, 1), role: z.enum(ROLES), temporary_password: z.string().max(256).optional() }).strict(), req.body);
     const temp = b.temporary_password || generatePassword();
     checkPasswordPolicy(config, temp, b.username);
@@ -35,7 +36,7 @@ module.exports = function userRoutes(api, ctx) {
     res.status(201).json({ user: get(uid), temporary_password: temp });
   });
 
-  api.patch('/users/:id', ADMIN, async (req, res) => {
+  api.patch('/users/:id', ADMIN, limits.sensitive, async (req, res) => {
     const uid = parse(id, req.params.id);
     const b = parse(z.object({ display_name: text(80, 1).optional(), role: z.enum(ROLES).optional(), disabled: z.boolean().optional() }).strict(), req.body);
     const cur = need(uid);
@@ -50,7 +51,7 @@ module.exports = function userRoutes(api, ctx) {
     res.json({ user: get(uid) });
   });
 
-  api.post('/users/:id/reset-password', ADMIN, async (req, res) => {
+  api.post('/users/:id/reset-password', ADMIN, limits.sensitive, async (req, res) => {
     const uid = parse(id, req.params.id);
     const cur = need(uid);
     if (cur.auth_provider !== 'local') throw new HttpError(400, 'NOT_LOCAL', 'This account does not use a local password.');
@@ -65,7 +66,7 @@ module.exports = function userRoutes(api, ctx) {
     res.json({ temporary_password: temp });
   });
 
-  api.post('/users/:id/unlock', ADMIN, async (req, res) => {
+  api.post('/users/:id/unlock', ADMIN, limits.sensitive, async (req, res) => {
     const cur = need(parse(id, req.params.id));
     db.transaction(() => {
       db.prepare('DELETE FROM login_failures WHERE key=?').run(cur.username.toLowerCase());

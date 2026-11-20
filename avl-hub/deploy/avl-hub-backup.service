@@ -1,0 +1,8 @@
+[Unit]
+Description=AVL Tech Hub nightly backup
+
+[Service]
+Type=oneshot
+User=avl
+WorkingDirectory=/opt/avl-hub
+ExecStart=/opt/avl-hub/scripts/backup.sh

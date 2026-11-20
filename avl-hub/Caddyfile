@@ -1,0 +1,9 @@
+# Caddy obtains and renews the HTTPS certificate for {$DOMAIN} by itself. The domain must point at this server (ports 80 and 443 open).
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy app:3000
+	# Uploads can be large (videos up to MAX_VIDEO_MB)
+	request_body {
+		max_size 250MB
+	}
+}

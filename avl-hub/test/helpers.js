@@ -45,6 +45,7 @@ async function harness(overrides = {}) {
   }
   async function as(user) { const c = client(); const r = await c.login(user); if (r.status !== 200) throw new Error('login failed ' + JSON.stringify(r.body)); return c; }
   return { ...h, base, db, makeUser, client, as, PW,
-    async close() { await new Promise(r => server.close(r)); h.close(); fs.rmSync(dir, { recursive: true, force: true }); } };
+    // close(true) keeps the data folder on disk (for tests that restore or inspect it afterwards).
+    async close(keep = false) { await new Promise(r => server.close(r)); h.close(); if (!keep) fs.rmSync(dir, { recursive: true, force: true }); }, dir };
 }
 module.exports = { harness, PW };

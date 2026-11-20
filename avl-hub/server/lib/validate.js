@@ -22,6 +22,17 @@ const url = z.string().refine(s => safeUrl(s) !== null, 'must be a valid https U
 const domain = z.string().transform(s => s.trim().toLowerCase())
   .pipe(z.string().regex(/^(?=.{4,253}$)([a-z0-9-]+\.)+[a-z]{2,}$/, 'invalid domain'));
 
+// https only; no credentials. SharePoint embeds additionally must be on a SharePoint host (pinned to SHAREPOINT_HOSTS when set).
+function httpsUrl(raw) {
+  try { const u = new URL(raw); return u.protocol === 'https:' && !u.username && !u.password && u.hostname.includes('.') ? u.toString() : null; } catch { return null; }
+}
+function sharepointUrl(raw, hosts = []) {
+  let u; try { u = new URL(raw); } catch { return null; }
+  if (u.protocol !== 'https:' || u.username || u.password) return null;
+  const h = u.hostname.toLowerCase();
+  return (hosts.length ? hosts.includes(h) : /^[a-z0-9-]+(-my)?\.sharepoint\.com$/.test(h)) ? u.toString() : null;
+}
+
 function parse(schema, data) {
   const r = schema.safeParse(data === undefined ? {} : data);
   if (!r.success) {
@@ -37,4 +48,4 @@ function hostMatches(urlStr, domains) {
     return domains.some(d => h === d || h.endsWith('.' + d));
   } catch { return false; }
 }
-module.exports = { z, text, id, slug, username, url, domain, safeUrl, parse, hostMatches, ROLES, PROVENANCE };
+module.exports = { z, text, id, slug, username, url, domain, safeUrl, httpsUrl, sharepointUrl, parse, hostMatches, ROLES, PROVENANCE };

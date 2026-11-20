@@ -37,6 +37,7 @@ function createApp(overrides = {}) {
 
   const app = express();
   app.disable('x-powered-by');
+  app.use((_req, res, next) => { res.set('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(), payment=(), usb=()'); next(); });
   if (config.trustProxy) app.set('trust proxy', config.trustProxy);
   app.use(helmet({
     contentSecurityPolicy: { directives: {
@@ -52,9 +53,10 @@ function createApp(overrides = {}) {
   const api = makeApi();
   app.use('/api', rateLimit({ windowMs: 60000, limit: config.apiRateMax, standardHeaders: true, legacyHeaders: false,
     handler: (_req, res) => res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many requests. Slow down.' } }) }));
-  app.use('/api', express.json({ limit: '256kb' }), (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); },
-    session(ctx), csrf, idempotency(ctx), api.router);
-  for (const r of ['auth', 'users', 'equipment', 'training', 'issues', 'install', 'external', 'files', 'lessons', 'panels']) require(`./routes/${r}`)(api, ctx);
+  const smallJson = express.json({ limit: '256kb' });
+  app.use('/api', (req, res, next) => (req.path === '/admin/import' ? next() : smallJson(req, res, next)),   // import has its own larger limit, after sign-in
+    (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); }, session(ctx), csrf, idempotency(ctx), api.router);
+  for (const r of ['auth', 'users', 'equipment', 'training', 'issues', 'install', 'external', 'files', 'lessons', 'panels', 'portability']) require(`./routes/${r}`)(api, ctx);
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'NOT_FOUND', 'No such endpoint.')));
 
   const pub = path.join(__dirname, '..', 'public');
@@ -77,8 +79,17 @@ function createApp(overrides = {}) {
     res.status(500).json({ error: { code: 'INTERNAL', message: 'Something went wrong.' } });
   });
 
-  ctx.auth.sessions.purgeExpired();
-  return { app, ctx, registry: api.registry, close: () => db.close() };
+  // Housekeeping: expired sessions, old replay records, stale lockout counters.
+  ctx.maintain = () => {
+    const now = Date.now(), iso = ms => new Date(now - ms).toISOString();
+    ctx.auth.sessions.purgeExpired();
+    db.prepare('DELETE FROM idempotency WHERE created_at < ?').run(iso(30 * 864e5));
+    db.prepare('DELETE FROM login_failures WHERE (locked_until IS NULL OR locked_until < ?) AND updated_at < ?').run(new Date(now).toISOString(), iso(864e5));
+  };
+  ctx.maintain();
+  const timer = setInterval(() => { try { ctx.maintain(); } catch (e) { console.error('maintenance failed', e.message); } }, 6 * 3600e3); timer.unref();
+  if (config.production && !config.trustProxy) console.warn('WARNING: NODE_ENV=production but TRUST_PROXY is not set. Behind a reverse proxy (Caddy, nginx) set TRUST_PROXY=1 so rate limits see real client addresses.');
+  return { app, ctx, registry: api.registry, close: () => { clearInterval(timer); db.close(); } };
 }
 
 if (require.main === module) {

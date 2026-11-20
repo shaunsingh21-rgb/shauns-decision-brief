@@ -1,0 +1,8 @@
+# For the systemd option: install Caddy (https://caddyserver.com/docs/install) and put this in /etc/caddy/Caddyfile
+hub.yourorg.edu {
+	encode gzip
+	reverse_proxy 127.0.0.1:3000
+	request_body {
+		max_size 250MB
+	}
+}

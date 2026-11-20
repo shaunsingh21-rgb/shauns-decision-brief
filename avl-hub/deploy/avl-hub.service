@@ -1,0 +1,20 @@
+# Alternative to Docker: run directly on a Linux server with systemd.  Copy to /etc/systemd/system/avl-hub.service
+# Assumes the app is in /opt/avl-hub, owned by user "avl", with a /opt/avl-hub/.env file (copy of .env.example).
+[Unit]
+Description=AVL Tech Hub
+After=network.target
+
+[Service]
+User=avl
+WorkingDirectory=/opt/avl-hub
+EnvironmentFile=/opt/avl-hub/.env
+ExecStart=/usr/bin/node server/index.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,3 +1,5 @@
+> **Superseded in places.** This is the original Phase 1 plan. Where it differs from `DECISIONS.md` (for example the test tooling and the OCR/CSP details), `DECISIONS.md` is correct.
+
 # AVL Tech Training & Equipment Hub — Phase 1 Plan
 
 Status: PROPOSAL for review. No application code exists yet.

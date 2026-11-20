@@ -1,0 +1,41 @@
+# AVL Tech Hub: the app + Caddy (which gets and renews the HTTPS certificate automatically).
+# Needs a .env file next to this one (copy .env.example) with at least DOMAIN=hub.yourorg.edu
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      TRUST_PROXY: "1"
+      DB_PATH: /data/avl-hub.db
+      UPLOAD_DIR: /data/uploads
+      BACKUP_DIR: /data/backups
+    volumes:
+      - avl-data:/data
+    expose: ["3000"]
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [app]
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env (for example hub.yourorg.edu)}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+  backup:
+    # Runs the nightly backup at 02:15 server time. Backups land in the same data volume under /data/backups;
+    # set BACKUP_COPY_TO (in .env) to ALSO copy each one somewhere else, and copy that off the machine.
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment: { DB_PATH: /data/avl-hub.db, UPLOAD_DIR: /data/uploads, BACKUP_DIR: /data/backups }
+    volumes:
+      - avl-data:/data
+    entrypoint: ["sh", "-c", "while true; do now=$$(date +%s); next=$$(date -d 'today 02:15' +%s); [ $$next -le $$now ] && next=$$(date -d 'tomorrow 02:15' +%s); sleep $$((next-now)); node scripts/backup.js || echo BACKUP-FAILED; done"]
+volumes:
+  avl-data:
+  caddy-data:
+  caddy-config:

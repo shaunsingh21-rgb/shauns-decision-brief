@@ -1,7 +1,7 @@
 'use strict';
 const crypto = require('crypto');
 const { HttpError } = require('../lib/errors');
-const { z, text, id, parse } = require('../lib/validate');
+const { z, text, id, parse, httpsUrl, sharepointUrl: spUrl } = require('../lib/validate');
 
 const AUTHORS = ['admin', 'trainer'], LEARNERS = ['admin', 'trainer', 'technician'];
 
@@ -13,14 +13,7 @@ module.exports = function lessonRoutes(api, ctx) {
   const touch = (req, mid) => db.prepare(`UPDATE training_modules SET status=CASE WHEN status='approved' THEN 'needs_review' ELSE status END, version=version+1, updated_by=?, updated_at=? WHERE id=?`).run(req.user.id, now(), mid);
 
   // Only https SharePoint hosts may be embedded (matches the CSP frame-src). Lesson videos stay in SharePoint by default.
-  function sharepointUrl(raw) {
-    let u; try { u = new URL(raw); } catch { return null; }
-    if (u.protocol !== 'https:' || u.username || u.password) return null;
-    const h = u.hostname.toLowerCase();
-    const ok = config.sharepointHosts.length ? config.sharepointHosts.includes(h) : /^[a-z0-9-]+(-my)?\.sharepoint\.com$/.test(h);
-    return ok ? u.toString() : null;
-  }
-  const httpsUrl = raw => { try { const u = new URL(raw); return u.protocol === 'https:' && !u.username && !u.password && u.hostname.includes('.') ? u.toString() : null; } catch { return null; } };
+  const sharepointUrl = raw => spUrl(raw, config.sharepointHosts);
 
   api.get('/modules/:id/videos', 'any', async (req, res) => {
     const m = mod(parse(id, req.params.id)); const author = AUTHORS.includes(req.user.role);

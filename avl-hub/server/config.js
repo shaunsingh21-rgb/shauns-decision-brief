@@ -4,14 +4,13 @@ const path = require('path');
 const int = (v, d) => (v === undefined || v === '' ? d : parseInt(v, 10));
 module.exports = function loadConfig(overrides = {}) {
   const env = process.env;
-  return {
+  const cfg = {
     port: int(env.PORT, 3000),
     dbPath: env.DB_PATH || path.join(__dirname, '..', 'data', 'avl-hub.db'),
     uploadDir: env.UPLOAD_DIR || path.join(__dirname, '..', 'data', 'uploads'),
     production: env.NODE_ENV === 'production',
     trustProxy: env.TRUST_PROXY ? int(env.TRUST_PROXY, 1) : 0,   // set 1 behind Caddy/nginx
     sessionTtlHours: int(env.SESSION_TTL_HOURS, 12),
-    cookieName: env.NODE_ENV === 'production' ? '__Host-avl_sid' : 'avl_sid',
     lockoutMaxFailures: int(env.LOCKOUT_MAX_FAILURES, 5),
     lockoutMinutes: int(env.LOCKOUT_MINUTES, 15),
     loginIpMax: int(env.LOGIN_IP_MAX, 30),                       // per 15 min per IP
@@ -28,6 +27,14 @@ module.exports = function loadConfig(overrides = {}) {
     sharepointHosts: (env.SHAREPOINT_HOSTS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean),
     anthropicModel: env.ANTHROPIC_MODEL || 'claude-sonnet-5-5',
     aiRatePerHour: int(env.AI_RATE_PER_HOUR, 30),
+    // Per-user limits on sensitive actions (the global per-IP limit and login lockout are separate).
+    rateUploadsPerHour: int(env.RATE_UPLOADS_PER_HOUR, 120),
+    rateSensitivePerHour: int(env.RATE_SENSITIVE_PER_HOUR, 60),
+    ratePasswordPer15Min: int(env.RATE_PASSWORD_PER_15MIN, 10),
+    backupDir: env.BACKUP_DIR || path.join(__dirname, '..', 'backups'),
     ...overrides,
   };
+  // __Host- cookies must be Secure, path=/ and have no Domain, which is exactly what we set in production.
+  cfg.cookieName = overrides.cookieName || (cfg.production ? '__Host-avl_sid' : 'avl_sid');
+  return cfg;
 };

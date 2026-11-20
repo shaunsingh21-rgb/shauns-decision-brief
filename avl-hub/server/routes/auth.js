@@ -18,6 +18,7 @@ const generatePassword = () => crypto.randomBytes(12).toString('base64url');
 
 module.exports = function authRoutes(api, ctx) {
   const { db, config, audit, auth } = ctx;
+  const limits = require('../middleware/limits')(config);
   const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, limit: config.loginIpMax, standardHeaders: true, legacyHeaders: false,
     handler: (_req, res) => res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many sign-in attempts from this device. Try again later.' } }),
@@ -53,7 +54,7 @@ module.exports = function authRoutes(api, ctx) {
 
   api.get('/me', 'any', async (req, res) => res.json({ user: publicUser(req.user) }));
 
-  api.post('/auth/change-password', 'any', async (req, res) => {
+  api.post('/auth/change-password', 'any', limits.password, async (req, res) => {
     const body = parse(z.object({ current_password: z.string().min(1).max(256), new_password: z.string().min(1).max(256) }).strict(), req.body);
     const u = req.user;
     if (u.auth_provider !== 'local' || !u.password_hash) throw new HttpError(400, 'NOT_LOCAL', 'This account does not use a local password.');

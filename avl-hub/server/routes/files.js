@@ -23,6 +23,7 @@ const safeName = n => (path.basename(String(n || 'file')).replace(/[\u0000-\u001
 
 module.exports = function fileRoutes(api, ctx) {
   const { db, config, audit } = ctx;
+  const rate = require('../middleware/limits')(config);
   const tmpDir = path.join(config.uploadDir, '_tmp'), storeDir = path.join(config.uploadDir, 'files');
   fs.mkdirSync(tmpDir, { recursive: true }); fs.mkdirSync(storeDir, { recursive: true });
   const limits = { photo: config.maxPhotoMb, document: config.maxDocMb, video: config.maxVideoMb };
@@ -37,7 +38,7 @@ module.exports = function fileRoutes(api, ctx) {
   });
   const meta = r => ({ id: r.id, purpose: r.purpose, mime: r.mime, size: r.size, name: r.original_name, equipment_id: r.equipment_id, created_at: r.created_at });
 
-  api.post('/files', EDITORS, receive, async (req, res) => {
+  api.post('/files', EDITORS, rate.upload, receive, async (req, res) => {
     const tmp = req.file && req.file.path;
     const bail = (status, code, msg) => { if (tmp) fs.rmSync(tmp, { force: true }); throw new HttpError(status, code, msg); };
     if (!req.file) bail(400, 'NO_FILE', 'Choose a file to upload.');
