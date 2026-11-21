@@ -11,8 +11,8 @@ const { HttpError } = require('../lib/errors');
 //    by interleaving them with correct passwords.
 // At most 2 password checks at once, so the 4-thread libuv pool always has free threads for file reads (static files, photos, uploads).
 const MAX_HASHING = parseInt(process.env.ARGON_CONCURRENCY || '2', 10); let hashing = 0; const waiting = [];
-const MAX_WAITING = 20;     // beyond this a sign-in is turned away at once (503) instead of waiting behind a flood
-const slot = async () => { if (hashing >= MAX_HASHING) { if (waiting.length >= MAX_WAITING) throw new HttpError(503, 'BUSY', 'Sign-in is busy right now. Try again in a few seconds.'); await new Promise(r => waiting.push(r)); } hashing++; };
+const MAX_WAITING = 300;    // a whole team signing in at shift start must all be served; only a flood beyond this is turned away at once (503)
+const slot = async () => { if (hashing >= MAX_HASHING) { if (waiting.length >= MAX_WAITING) throw new HttpError(503, 'BUSY', 'Sign-in is busy right now. Try again in a few seconds.', { retry_after_seconds: 3 }); await new Promise(r => waiting.push(r)); } hashing++; };
 const release = () => { hashing--; const n = waiting.shift(); if (n) n(); };
 const limited = async fn => { await slot(); try { return await fn(); } finally { release(); } };
 module.exports = function localProvider({ db, config }) {

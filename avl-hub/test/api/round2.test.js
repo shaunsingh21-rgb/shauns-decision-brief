@@ -101,3 +101,15 @@ test('the quiz of a module that is not approved is closed (and a trainee sees wh
   const m = (await tr.post('/api/modules', { title: 'Closed quiz', level: 1 })).body.module; const q = (await tr.post(`/api/modules/${m.id}/questions`, { prompt: 'Q', options: ['a', 'b'], correct_index: 0 })).body.id;
   const r = await tc.post(`/api/modules/${m.id}/quiz-attempts`, { answers: { [q]: 0 } }); assert.equal(r.status, 409); assert.equal(r.body.error.code, 'MODULE_NOT_APPROVED');
 });
+
+test('the equipment list is never stale: edit, approve, field change and delete all show at once', async () => {
+  const h = await mk(); const ac = await h.as(await h.makeUser('admin')); const names = async () => (await ac.get('/api/equipment')).body.equipment;
+  const e = (await ac.post('/api/equipment', { name: 'SAMPLE memo one', fields: [{ key: 'power', value: '', provenance: 'verify' }] })).body.equipment;
+  const find = async () => (await names()).find(x => x.id === e.id);
+  assert.equal((await find()).name, 'SAMPLE memo one'); assert.equal((await find()).verify_count, 1);
+  assert.equal((await ac.patch(`/api/equipment/${e.id}`, { name: 'SAMPLE memo renamed' })).status, 200); assert.equal((await find()).name, 'SAMPLE memo renamed', 'rename shows at once');
+  assert.equal((await ac.patch(`/api/equipment/${e.id}`, { fields: [{ key: 'power', value: 'SAMPLE team value', provenance: 'team' }] })).status, 200); assert.equal((await find()).verify_count, 0, 'a confirmed field lowers the VERIFY count at once');
+  assert.equal((await ac.post(`/api/equipment/${e.id}/submit-review`)).status, 200); assert.equal((await find()).status, 'needs_review');
+  assert.equal((await ac.post(`/api/equipment/${e.id}/approve`, {})).status, 200); assert.equal((await find()).status, 'approved', 'approval shows at once');
+  assert.equal((await ac.del(`/api/equipment/${e.id}`)).status, 200); assert.equal(await find(), undefined, 'delete shows at once');
+});

@@ -50,10 +50,11 @@ function createApp(overrides = {}) {
   app.use((req, res, next) => {
     req.id = crypto.randomBytes(4).toString('hex'); res.set('X-Request-Id', req.id); const t0 = process.hrtime.bigint();
     res.on('finish', () => {
-      if (req.path === '/healthz' || !(req.path.startsWith('/api') || res.statusCode >= 400)) return;
-      if (res.statusCode === 404 && !req.path.startsWith('/api')) return;     // a flood of junk URLs must not push real events out of the log
+      const full = req.originalUrl.split('?')[0];      // req.path has the /api mount prefix stripped
+      if (full === '/healthz' || !(full.startsWith('/api') || res.statusCode >= 400)) return;
+      if (res.statusCode === 404 && !full.startsWith('/api')) return;     // a flood of junk URLs must not push real events out of the log
       const ms = Math.round(Number(process.hrtime.bigint() - t0) / 1e6);
-      (res.statusCode >= 500 ? log.error : log.info)(`req=${req.id} ${req.method} ${req.path.slice(0, 200)} ${res.statusCode} ${ms}ms user=${(req.user && req.user.id) || '-'}`);
+      (res.statusCode >= 500 ? log.error : log.info)(`req=${req.id} ${req.method} ${full.slice(0, 200)} ${res.statusCode} ${ms}ms user=${(req.user && req.user.id) || '-'}`);
     });
     next();
   });
