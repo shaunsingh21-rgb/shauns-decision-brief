@@ -17,7 +17,7 @@ export const navigate = hash => { if (location.hash === hash) route(); else loca
 // A rejected form says WHICH fields to look at, not just "Invalid input."
 export const errMsg = e => {
   const d = e && e.data && Array.isArray(e.data.details) ? e.data.details : [];
-  if (e && e.code === 'VALIDATION' && d.length) { const names = [...new Set(d.map(x => String(x.path || '').split('.').pop().replace(/_/g, ' ')).filter(Boolean))]; if (names.length) return `Please check: ${names.join(', ')}.`; }
+  if (e && e.code === 'VALIDATION' && d.length) { const names = [...new Set(d.map(x => String(x.path || '').split('.').filter(p => !/^\d+$/.test(p)).slice(-1)[0] || '').filter(Boolean))]; if (names.length) return `Please check: ${names.map(n => n.replace(/_/g, ' ')).join(', ')}.`; if (d[0] && d[0].message) return `Please check your entry: ${d[0].message}`; }
   return (e && e.message) || 'Something went wrong.';
 };
 // Shown after a queueable change: tells the person it is safe even though it hasn't reached the server yet.

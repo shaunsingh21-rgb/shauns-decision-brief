@@ -113,5 +113,6 @@ dl.facts{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;margin:
 /* Round-2 accessibility: control borders reach 3:1 (WCAG 1.4.11); focus is never hidden under the sticky header; short windows (400% zoom) do not pin the header */
 input,select,textarea,button:not(.primary):not(.danger),.btn:not(.primary){border-color:var(--line-ctl)}
 html{scroll-padding-top:6.5rem}
-@media (max-height:520px){header.top{position:static}}
+@media (max-height:520px){header.top{position:static}html{scroll-padding-top:0}}
+header.top button:not(.primary):not(.danger){border-color:rgba(255,255,255,.6)}   /* the control-border rule must not weaken the white outline on the green header */
 td,th{overflow-wrap:break-word}   /* "anywhere" let a narrow column shrink to nothing: "firmware version" came out as "firmw/are/versio/n" on a phone */
