@@ -135,8 +135,8 @@ module.exports = function userRoutes(api, ctx) {
       file: v => one('SELECT original_name FROM files WHERE id=?', v), source_domain: v => v };
     const rows = db.prepare('SELECT * FROM audit_log WHERE id < ? ORDER BY id DESC LIMIT ?').all(before, limit);
     // Scores, quiz results and trainer notes are private training data: callers who cannot view progress do not get them through the log either.
-    const scrub = e => { if (req.permissions.has('progress.view_all') || !/^(signoff|score|quiz)\./.test(e.action)) return e;
-      try { const d = JSON.parse(e.detail); for (const k of ['note', 'scores', 'quiz_pct', 'score']) delete d[k]; return { ...e, detail: JSON.stringify(d) }; } catch { return { ...e, detail: '{}' }; } };
+    const scrub = e => { if (req.permissions.has('progress.view_all') || !/^(signoff|practical|quiz)\./.test(e.action)) return e;
+      try { const d = JSON.parse(e.detail); for (const k of ['note', 'scores', 'quiz_pct', 'score', 'score_pct', 'passed', 'trainee', 'trainee_id', 'skill']) delete d[k]; return { ...e, detail: JSON.stringify(d) }; } catch { return { ...e, detail: '{}' }; } };
     res.json({ entries: rows.map(scrub).map(e => ({ ...e, target: e.entity && e.entity_id && nameOf[e.entity] ? nameOf[e.entity](e.entity_id) : null })), has_more: rows.length === limit });
   });
 };

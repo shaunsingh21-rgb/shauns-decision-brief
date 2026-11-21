@@ -9,7 +9,8 @@ export const state = { user: null, offlineStart: false };
 export const can = (...perms) => !!state.user && perms.some(p => (state.user.permissions || []).includes(p));
 // Identical messages are shown once (not stacked), and any message can be dismissed with a tap.
 export function toast(msg) {
-  const box = document.getElementById('toasts'); for (const old of [...box.children]) if (old.textContent === msg) old.remove();
+  const box = document.getElementById('toasts'); for (const old of [...box.children]) old.remove();   // one message at a time: they used to stack and cover the page on a phone
+  
   const t = h('button', { class: 'toast', type: 'button', 'aria-label': `${msg} (tap to dismiss)`, onclick: () => t.remove() }, msg); box.append(t); setTimeout(() => t.remove(), 8000);
 }
 export const navigate = hash => { if (location.hash === hash) route(); else location.hash = hash; };
@@ -71,6 +72,7 @@ async function resolveUser() {
   try {
     const r = await request('GET', '/api/me');
     if (r.ok) { state.user = r.json.user; state.offlineStart = false; await store.metaSet('user', state.user); return; }
+    if (r.status !== 401) throw new Error('server busy or unavailable');     // only a 401 means "signed out"; a 429 or 5xx must not throw a signed-in person to the login page
   } catch { /* offline */
     const cached = await store.metaGet('user');
     if (cached && !cached.must_change_password) { state.user = cached; state.offlineStart = true; sync.markOffline(true); }
@@ -78,7 +80,7 @@ async function resolveUser() {
 }
 async function activate() {
   setUser(state.user.id); await sync.init(state.user.id);
-  if (!sync.status().offline) setTimeout(() => warmCache(state.user.permissions), 1200);
+  if (!sync.status().offline) setTimeout(() => state.user && warmCache(state.user.permissions), 1200);
 }
 
 let seq = 0, firstRender = true;

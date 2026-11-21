@@ -19,7 +19,7 @@ async function list(root) {
     clear(out).append(...equipment.filter(e => !t || `${e.name} ${e.manufacturer || ''} ${e.category || ''}`.toLowerCase().includes(t)).map(e =>
       h('a', { class: 'card link', href: `#/equipment/${e.id}` },
         h('strong', {}, e.name), h('div', { class: 'hint' }, [e.manufacturer, e.category].filter(Boolean).join(' · ') || 'No manufacturer listed'),
-        h('div', { class: 'row' }, statusBadge(e.status), e.verify_count ? h('span', { class: 'badge b-verify' }, `${e.verify_count} VERIFY`) : null))));
+        h('div', { class: 'row' }, statusBadge(e.status, e.verify_count), e.verify_count ? h('span', { class: 'badge b-verify' }, `${e.verify_count} VERIFY`) : null))));
     if (!out.children.length) out.append(h('p', { class: 'hint' }, equipment.length ? 'No matches.' : 'No equipment yet.'));
   };
   q.addEventListener('input', draw); draw();
@@ -36,7 +36,7 @@ async function detail(root, id) {
   const act = fn => async () => { try { noteQueued(await fn()); await reload(); } catch (x) { toast(errMsg(x)); } };
 
   const head = h('div', {}, h('p', {}, h('a', { href: '#/equipment' }, '← All equipment')), h('h1', {}, e.name),
-    h('div', { class: 'row' }, statusBadge(e.status), h('span', { class: 'hint' }, [e.manufacturer, e.category].filter(Boolean).join(' · '))),
+    h('div', { class: 'row' }, statusBadge(e.status, (e.fields || []).filter(f => f.provenance === 'verify').length), h('span', { class: 'hint' }, [e.manufacturer, e.category].filter(Boolean).join(' · '))),
     e.status === 'needs_review' && h('div', { class: 'notice' }, 'This record changed since it was approved, or is waiting for review. It must be approved again.'),
     e.verify_keys.length > 0 && h('div', { class: 'notice' }, `${plural(e.verify_keys.length, 'item is', 'items are')} marked VERIFY (not confirmed): ${e.verify_keys.map(nice).join(', ')}. Do not rely on ${e.verify_keys.length === 1 ? 'it' : 'them'} until confirmed from a source.`));
 

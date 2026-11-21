@@ -45,6 +45,7 @@ async function moduleView(root, id) {
   // ---- written ----
   const w = h('div', { class: 'card' }, h('h2', {}, 'Written quiz'));
   if (!m.quiz.length) w.append(h('p', { class: 'hint' }, 'No quiz questions yet.'));
+  else if (can(...LEARN) && m.status !== 'approved') w.append(h('p', { class: 'hint' }, 'The quiz opens once a leader approves this module.'));
   else if (can(...LEARN)) {
     const picks = {}; const result = h('div', { role: 'status', 'aria-live': 'polite' });
     const bestText = pct => `Pass mark ${me.written.pass_pct}%. Your best: ${pct == null ? 'not taken yet' : pct + '%'}.`;
@@ -54,7 +55,7 @@ async function moduleView(root, id) {
         h('input', { type: 'radio', name: q.id, onchange: () => picks[q.id] = j }), o)))),
       result, h('button', { class: 'primary', onclick: async () => {
         const blank = m.quiz.length - Object.keys(picks).length;
-        if (blank > 0) return clear(result).append(h('div', { class: 'notice bad', role: 'alert' }, `Answer every question first (${plural(blank, 'one is', 'ones are')} still blank).`));
+        if (blank > 0) return clear(result).append(h('div', { class: 'notice bad', role: 'alert' }, `Answer every question first (${blank === 1 ? '1 is' : blank + ' are'} still blank).`));
         try { const r = await mutate('POST', `/modules/${id}/quiz-attempts`, { answers: picks }, { label: `Quiz answers for “${m.title}”` });
           if (r.queued) return clear(result).append(h('div', { class: 'notice' }, 'Your answers are saved on this device. They are graded when you’re back online, and your score will show here then.'));
           bestPct = Math.max(bestPct ?? 0, r.score_pct); best.textContent = bestText(bestPct);

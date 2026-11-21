@@ -87,12 +87,13 @@ test('sign-off is refused unless the module is Approved: drafts, and approved mo
   const m = (await tc.post('/api/modules', { title: 'SAMPLE draft module', level: 1 })).body.module;
   const q = (await tc.post(`/api/modules/${m.id}/questions`, { prompt: 'SAMPLE q', options: ['a', 'b'], correct_index: 1 })).body.id;
   const sk = (await tc.post(`/api/modules/${m.id}/skills`, { name: 'SAMPLE skill' })).body.id;
-  await kc.post(`/api/modules/${m.id}/quiz-attempts`, { answers: { [q]: 1 } }); await tc.post('/api/practical-scores', { trainee_id: tech.id, skill_id: sk, score: 3 });
+  assert.equal((await kc.post(`/api/modules/${m.id}/quiz-attempts`, { answers: { [q]: 1 } })).body.error.code, 'MODULE_NOT_APPROVED', 'the quiz of a draft is not open');
+  await tc.post('/api/practical-scores', { trainee_id: tech.id, skill_id: sk, score: 3 });
   const draft = await t2c.post('/api/signoffs', { trainee_id: tech.id, module_id: m.id });
   assert.equal(draft.status, 409); assert.equal(draft.body.error.code, 'MODULE_NOT_APPROVED'); assert.match(draft.body.error.message, /still a draft/);
   await tc.post(`/api/modules/${m.id}/submit-review`);
   assert.match((await t2c.post('/api/signoffs', { trainee_id: tech.id, module_id: m.id })).body.error.message, /waiting for review/);
-  await ac.post(`/api/modules/${m.id}/approve`);
+  await ac.post(`/api/modules/${m.id}/approve`); assert.equal((await kc.post(`/api/modules/${m.id}/quiz-attempts`, { answers: { [q]: 1 } })).status, 201, 'the quiz opens once approved');
   await tc.patch(`/api/modules/${m.id}`, { summary: 'SAMPLE changed after approval' });                       // back to Needs Review
   assert.equal((await t2c.post('/api/signoffs', { trainee_id: tech.id, module_id: m.id })).body.error.code, 'MODULE_NOT_APPROVED');
   await ac.post(`/api/modules/${m.id}/approve`);

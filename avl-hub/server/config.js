@@ -14,7 +14,7 @@ function loadEnvFile() {
   }
 }
 loadEnvFile();
-const int = (v, d) => (v === undefined || v === '' ? d : parseInt(v, 10));
+const int = (v, d) => { if (v === undefined || v === '') return d; const n = parseInt(v, 10); if (Number.isNaN(n)) { console.warn(`WARN setting value "${v}" is not a number; using the default ${d}`); return d; } return n; };
 module.exports = function loadConfig(overrides = {}) {
   const env = process.env;
   const cfg = {
@@ -24,7 +24,7 @@ module.exports = function loadConfig(overrides = {}) {
     production: env.NODE_ENV === 'production',
     nodeEnvRaw: env.NODE_ENV || null,
     logDir: env.LOG_DIR || null,
-    trustProxy: env.TRUST_PROXY ? (/^true$/i.test(env.TRUST_PROXY) ? 1 : (int(env.TRUST_PROXY, 1) || 0)) : 0,   // set 1 behind Caddy/nginx
+    trustProxy: env.TRUST_PROXY ? (/^(true|yes|on)$/i.test(env.TRUST_PROXY.trim()) ? 1 : /^(false|no|off|)$/i.test(env.TRUST_PROXY.trim()) ? 0 : (int(env.TRUST_PROXY, 0) || 0)) : 0,   // set 1 behind Caddy/nginx
     sessionTtlHours: int(env.SESSION_TTL_HOURS, 12),
     lockoutMaxFailures: int(env.LOCKOUT_MAX_FAILURES, 5),
     lockoutMinutes: int(env.LOCKOUT_MINUTES, 15),

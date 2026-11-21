@@ -9,6 +9,8 @@ const { migrate } = require('../../server/db');
 
 const PREFIX = 'avl-backup-';
 const NAME_RE = /^avl-backup-\d{8}-\d{6}$/;
+// A folder dated more than a day in the future (a one-off clock jump) is ignored: it would otherwise sort newest, stop pruning for ever, and hide a missing backup.
+const notFuture = name => { const m = name.match(/(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})$/); return !m || Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]) <= Date.now() + 86400000; };
 const sha256 = f => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
 const stamp = d => d.toISOString().replace(/[-:]/g, '').replace(/\..+$/, '').replace('T', '-');
 const knownMigrations = () => fs.readdirSync(path.join(__dirname, '..', '..', 'migrations')).filter(f => /^\d+_.+\.sql$/.test(f)).sort();
@@ -60,12 +62,12 @@ async function createBackup({ dbPath, uploadDir, backupDir, keep = 14, now = new
 }
 // Deletes only folders that match our exact naming pattern, oldest first, keeping the newest `keep`.
 function prune(backupDir, keep) {
-  const dirs = fs.readdirSync(backupDir, { withFileTypes: true }).filter(e => e.isDirectory() && NAME_RE.test(e.name)).map(e => e.name).sort();
+  const dirs = fs.readdirSync(backupDir, { withFileTypes: true }).filter(e => e.isDirectory() && NAME_RE.test(e.name) && notFuture(e.name)).map(e => e.name).sort();
   const old = dirs.slice(0, Math.max(0, dirs.length - Math.max(1, keep)));
   for (const d of old) fs.rmSync(path.join(backupDir, d), { recursive: true, force: true });
   return old;
 }
-const listBackups = backupDir => (fs.existsSync(backupDir) ? fs.readdirSync(backupDir, { withFileTypes: true }).filter(e => e.isDirectory() && NAME_RE.test(e.name)).map(e => e.name).sort() : []);
+const listBackups = backupDir => (fs.existsSync(backupDir) ? fs.readdirSync(backupDir, { withFileTypes: true }).filter(e => e.isDirectory() && NAME_RE.test(e.name) && notFuture(e.name)).map(e => e.name).sort() : []);
 
 // Checks a backup folder WITHOUT changing anything. Returns {ok, problems[], manifest, info}.
 function verifyBackup(dir) {

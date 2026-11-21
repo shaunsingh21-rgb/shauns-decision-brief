@@ -1,3 +1,5 @@
+> **Warning (round 3):** in the starter questions the correct answer is the longest option in 81 of 90, and the wrong answers are often absurd. Anyone could pass by always choosing the longest. **Do not use the starter quiz as evidence for sign-off until a trainer has rewritten the questions.** The modules and skills are usable as a starting outline.
+
 # Starter curriculum (SAMPLE)
 
 File: starter-curriculum.json. Format avl-hub-content v1. 18 modules, 90 quiz questions, 78 practical skills, 5 levels.

@@ -9,9 +9,10 @@ const { HttpError } = require('../lib/errors');
 //  * a higher per-username ceiling ("all:" key, LOCKOUT_GLOBAL_FAILURES) still stops a guesser who uses many addresses;
 //  * the counter is only cleared when sign-in is COMPLETE (after the second step, if there is one), so authenticator codes cannot be guessed
 //    by interleaving them with correct passwords.
-// PROTOTYPE: at most 2 password checks at once, so the 4-thread libuv pool always has free threads for file reads (static files, photos, uploads).
+// At most 2 password checks at once, so the 4-thread libuv pool always has free threads for file reads (static files, photos, uploads).
 const MAX_HASHING = parseInt(process.env.ARGON_CONCURRENCY || '2', 10); let hashing = 0; const waiting = [];
-const slot = async () => { if (hashing >= MAX_HASHING) await new Promise(r => waiting.push(r)); hashing++; };
+const MAX_WAITING = 20;     // beyond this a sign-in is turned away at once (503) instead of waiting behind a flood
+const slot = async () => { if (hashing >= MAX_HASHING) { if (waiting.length >= MAX_WAITING) throw new HttpError(503, 'BUSY', 'Sign-in is busy right now. Try again in a few seconds.'); await new Promise(r => waiting.push(r)); } hashing++; };
 const release = () => { hashing--; const n = waiting.shift(); if (n) n(); };
 const limited = async fn => { await slot(); try { return await fn(); } finally { release(); } };
 module.exports = function localProvider({ db, config }) {

@@ -51,8 +51,9 @@ function createApp(overrides = {}) {
     req.id = crypto.randomBytes(4).toString('hex'); res.set('X-Request-Id', req.id); const t0 = process.hrtime.bigint();
     res.on('finish', () => {
       if (req.path === '/healthz' || !(req.path.startsWith('/api') || res.statusCode >= 400)) return;
+      if (res.statusCode === 404 && !req.path.startsWith('/api')) return;     // a flood of junk URLs must not push real events out of the log
       const ms = Math.round(Number(process.hrtime.bigint() - t0) / 1e6);
-      (res.statusCode >= 500 ? log.error : log.info)(`req=${req.id} ${req.method} ${req.path} ${res.statusCode} ${ms}ms user=${(req.user && req.user.id) || '-'}`);
+      (res.statusCode >= 500 ? log.error : log.info)(`req=${req.id} ${req.method} ${req.path.slice(0, 200)} ${res.statusCode} ${ms}ms user=${(req.user && req.user.id) || '-'}`);
     });
     next();
   });
@@ -75,7 +76,7 @@ function createApp(overrides = {}) {
   const api = makeApi({ idem: idempotency(ctx) });                        // replay protection runs AFTER the permission check, per route
   // The request limit is per PERSON once signed in (a whole team behind one office address no longer shares a single budget), per address before that.
   const apiLimit = rateLimit({ windowMs: 60000, limit: req => (req.method === 'GET' ? config.apiReadRateMax : config.apiRateMax), standardHeaders: true, legacyHeaders: false,
-    keyGenerator: req => (req.user ? 'u:' + req.user.id : ipKeyGenerator(req.ip)),
+    keyGenerator: req => (req.method === 'GET' ? 'r:' : 'w:') + (req.user ? 'u:' + req.user.id : ipKeyGenerator(req.ip)),   // reads and writes have separate budgets, so a big prefetch cannot block queued offline writes
     handler: (_req, res) => res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many requests. Slow down.' } }) });
   const smallJson = express.json({ limit: '256kb' });
   app.use('/api', (req, res, next) => (req.path === '/admin/import' ? next() : smallJson(req, res, next)),   // import has its own larger limit, after sign-in
@@ -104,7 +105,6 @@ function createApp(overrides = {}) {
     const why = support.explainError(err);
     log.error(`req=${_req.id} ${_req.method} ${_req.path} FAILED: ${why.short}${why.fix ? ' | WHAT TO DO: ' + why.fix : ''}`, err);   // details stay in the server log
     res.status(500).json({ error: { code: 'INTERNAL', message: 'Something went wrong.', request_id: _req.id } });
-  server.requestTimeout = 0;   // PROTOTYPE: Node's default (300 s) kills a 150 MB upload from a phone slower than ~4 Mbit/s. headersTimeout (60 s) still protects against slow-loris.
   });
 
   // Housekeeping: expired sessions, old replay records, stale lockout counters.
@@ -140,6 +140,7 @@ if (require.main === module) {
     log.info(`features: two-step=${ctx.config.mfaEncryptionKey ? 'on' : 'off'} sharepoint=${ctx.config.sharepointHosts.join(',') || 'any *.sharepoint.com'} web-search=${ctx.config.braveApiKey ? 'on' : 'off'} ai=${ctx.config.anthropicApiKey ? 'on' : 'off'} trust-proxy=${ctx.config.trustProxy}`);
     const h = ctx.health(); for (const p of h.problems) log.error('HEALTH PROBLEM: ' + p); for (const w of h.warnings) log.warn('HEALTH WARNING: ' + w);
   });
+  server.requestTimeout = 0;   // Node's default (300 s) cuts off a 150 MB upload from a phone slower than ~4 Mbit/s; headersTimeout (60 s) still guards against slow-loris
   server.on('error', e => { if (e.code !== 'EADDRINUSE' || server.listening) log.error('server error', e); });
   // A heartbeat file next to the database tells restore (which may run in another container) that the app is live and must be stopped first.
   const beat = path.join(path.dirname(ctx.config.dbPath), '.avl-running');

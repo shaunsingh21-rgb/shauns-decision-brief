@@ -168,6 +168,7 @@ module.exports = function trainingRoutes(api, ctx) {
   // Quiz is graded on the server. The attempt is attributed to the signed-in user, never to a client-supplied id.
   api.post('/modules/:id/quiz-attempts', P('training.take'), async (req, res) => {
     const m = mod(parse(id, req.params.id));
+    if (m.status !== 'approved') throw new HttpError(409, 'MODULE_NOT_APPROVED', 'This module has not been approved yet, so its quiz is not open. Ask your trainer.');
     const b = parse(z.object({ answers: z.record(id, z.number().int().min(0).max(5)) }).strict(), req.body);
     const qs = db.prepare('SELECT id,correct_index FROM quiz_questions WHERE module_id=?').all(m.id);
     if (!qs.length) throw new HttpError(409, 'NO_QUIZ', 'This module has no quiz yet.');

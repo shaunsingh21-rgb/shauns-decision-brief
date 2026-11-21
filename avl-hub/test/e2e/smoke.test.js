@@ -77,7 +77,7 @@ test('wizard: photo -> OCR -> confirm -> research -> AI draft -> review -> save;
   assert.ok((await page.locator('.toast').allTextContents()).join().match(/reason/i), 'override without reason is refused');
   await page.getByLabel(/Override reason/).fill('SAMPLE: spec sheet pending');
   await page.getByRole('button', { name: 'Approve anyway (override)' }).click();
-  await page.getByText('Approved', { exact: true }).first().waitFor();
+  await page.getByText('Approved with VERIFY items', { exact: true }).first().waitFor();
   await page.context().close();
 });
 

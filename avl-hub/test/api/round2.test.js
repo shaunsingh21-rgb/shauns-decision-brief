@@ -76,3 +76,28 @@ test('an equal-power role cannot be used to move someone out of a two-step-requi
   const r = await m.patch(`/api/users/${victim.id}`, { role: lax.id }); assert.equal(r.status, 403);
   assert.equal((await ac.patch(`/api/users/${victim.id}`, { role: lax.id })).status, 200, 'a Leader/Admin still can');
 });
+
+test('audit-only roles do not see practical scores or quiz percentages either', async () => {
+  const h = await mk(); const ac = await h.as(await h.makeUser('admin')); const tr = await h.as(await h.makeUser('trainer')); const tech = await h.makeUser('technician');
+  const role = (await ac.post('/api/roles', { name: 'Only Audit', permissions: ['audit.view'] })).body.role; const au = await h.as(await h.makeUser(role.id));
+  const m = (await tr.post('/api/modules', { title: 'Scrub module', level: 1 })).body.module; const sk = (await tr.post(`/api/modules/${m.id}/skills`, { name: 'Scrub skill' })).body.id;
+  await tr.post('/api/practical-scores', { trainee_id: tech.id, skill_id: sk, score: 1, note: 'x' });
+  h.db.prepare("INSERT INTO audit_log (ts,actor_id,actor_name,action,entity,entity_id,detail) VALUES (?,?,?,?,?,?,?)").run(new Date().toISOString(), tech.id, 'T', 'quiz.attempt', 'module', m.id, JSON.stringify({ score_pct: 37, passed: false }));
+  const mine = JSON.stringify((await au.get('/api/audit?limit=200')).body.entries); assert.ok(!/score_pct|"score":|"skill"|trainee/.test(mine), 'nothing score-like leaks: ' + mine.slice(0, 300));
+  assert.match(JSON.stringify((await ac.get('/api/audit?limit=200')).body.entries), /score_pct/, 'but the administrator still sees it');
+});
+
+test('a backup folder dated in the future is ignored: pruning and the "newest backup" age still work', async () => {
+  const fs = require('fs'), os = require('os'), path = require('path'); const { listBackups, prune } = require('../../scripts/lib/backup');
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'avl-fut-')); try {
+    for (const n of ['avl-backup-20240101-010101', 'avl-backup-20240102-010101', 'avl-backup-20240103-010101', 'avl-backup-20991231-235959']) fs.mkdirSync(path.join(d, n));
+    assert.ok(!listBackups(d).includes('avl-backup-20991231-235959'), 'not listed'); const gone = prune(d, 2); assert.deepEqual(gone, ['avl-backup-20240101-010101'], 'real old ones are still pruned');
+    assert.ok(fs.existsSync(path.join(d, 'avl-backup-20991231-235959')), 'and the odd folder is left alone');
+  } finally { fs.rmSync(d, { recursive: true, force: true }); }
+});
+
+test('the quiz of a module that is not approved is closed (and a trainee sees why)', async () => {
+  const h = await mk(); const tr = await h.as(await h.makeUser('trainer')); const tc = await h.as(await h.makeUser('technician'));
+  const m = (await tr.post('/api/modules', { title: 'Closed quiz', level: 1 })).body.module; const q = (await tr.post(`/api/modules/${m.id}/questions`, { prompt: 'Q', options: ['a', 'b'], correct_index: 0 })).body.id;
+  const r = await tc.post(`/api/modules/${m.id}/quiz-attempts`, { answers: { [q]: 0 } }); assert.equal(r.status, 409); assert.equal(r.body.error.code, 'MODULE_NOT_APPROVED');
+});

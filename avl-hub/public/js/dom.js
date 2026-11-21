@@ -41,7 +41,9 @@ export const fmtDate = s => s ? new Date(s).toLocaleString([], { dateStyle: 'med
 export const PROV = { manufacturer: 'Manufacturer', team: 'Team', ai: 'AI-drafted', verify: 'VERIFY' };
 export const STATUS = { draft: 'Draft', needs_review: 'Needs Review', approved: 'Approved' };
 export const provBadge = p => h('span', { class: `badge b-${p}`, title: p === 'ai' ? 'Drafted by AI. Needs human review.' : p === 'verify' ? 'Not confirmed. Do not rely on this.' : '' }, PROV[p] || p);
-export const statusBadge = s => h('span', { class: `badge b-${s}` }, STATUS[s] || s);
+// An approved record that still has VERIFY items must not look fully trusted (it can only be approved by an explicit override).
+export const statusBadge = (s, verifyCount = 0) => (s === 'approved' && verifyCount > 0
+  ? h('span', { class: 'badge b-needs_review' }, 'Approved with VERIFY items') : h('span', { class: `badge b-${s}` }, STATUS[s] || s));
 
 // Field helpers that always carry a visible label.
 export function field(label, input, hint) {

@@ -78,7 +78,7 @@ video.lesson{width:100%;max-height:70vh;border-radius:10px;background:#000}
 
 /* ---- review fixes: long text, focus, header, phone tables, contrast ---- */
 main:focus{outline:none}
-.card,h1,h2,h3,td,th,.hint,.notice,li,legend,label,.badge,summary,code{overflow-wrap:anywhere}
+.card,h1,h2,h3,.hint,.notice,li,legend,label,.badge,summary,code{overflow-wrap:anywhere}
 .btn.primary{background:var(--brand);color:var(--brand-ink);border-color:var(--brand);font-weight:700}
 header.top{position:sticky;top:0;z-index:30}
 .userlink{text-decoration:none}
@@ -114,3 +114,4 @@ dl.facts{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;margin:
 input,select,textarea,button:not(.primary):not(.danger),.btn:not(.primary){border-color:var(--line-ctl)}
 html{scroll-padding-top:6.5rem}
 @media (max-height:520px){header.top{position:static}}
+td,th{overflow-wrap:break-word}   /* "anywhere" let a narrow column shrink to nothing: "firmware version" came out as "firmw/are/versio/n" on a phone */

@@ -1,6 +1,6 @@
 # Round 2: ten specialist reviewers (domain, compliance, operations, product, verification)
 
-Reports are in `docs/round2/reports/`, `docs/privacy-drafts/`, `docs/rollout/`. Everything below says what was **applied in code**, what is **supplied as files**, and what is **not built** (needs a decision).
+Reports kept in the repo: `docs/round2/reports/` (wording audit, accessibility, performance, release, field-ops notes, guide test), `docs/privacy-drafts/`, `docs/rollout/`. The other round-2 reports (red team, leader, librarian, instructional designer) were summarised in the chat only. Everything below says what was **applied in code**, what is **supplied as files**, and what is **not built** (needs a decision).
 
 ## Applied in code (each has a test; `test/api/round2.test.js`, one browser test in `test/e2e/review-fixes.test.js`)
 | Finding | Fix |
@@ -30,3 +30,18 @@ Overview/records/readiness/re-certification (mock-ups in `docs/round2/mockups`),
 
 ## Honest limits
 No real iPhone/Safari, no real hosting or Docker daemon, no screen reader. Round-2 agents measured on shared CPUs. One fix (a noisy address locking out everyone) has a test that also passes on the old code, so it is not proven by a test.
+
+## Round 3 (same ten roles re-tested the fixed app; desktop and an emulated iPhone 14 in Chromium, NOT real Safari)
+Result: the fixes held (every round-2 security repro was fixed or partly fixed; 1..9 schema upgrades, interrupted migrations and two-instance starts are safe). They also introduced problems, now fixed:
+- a misplaced line threw a ReferenceError on every 500 and the long-upload timeout never applied: moved after `listen`;
+- reads and writes shared one rate counter, so a big prefetch could block queued writes: now separate counters;
+- the audit scrub missed `practical.score` and `quiz.attempt`: fixed and tested;
+- quizzes could be taken on Draft modules: refused (409) and the screen says the quiz opens on approval;
+- a 429 or 5xx on `/api/me` sent a signed-in person to the login page: only a 401 does now;
+- the specs table wrapped letter by letter on a phone (`overflow-wrap:anywhere`): fixed;
+- an override-approved record showed a plain green Approved badge: now "Approved with VERIFY items";
+- toasts stacked: one at a time; "1 one is still blank": fixed;
+- the sign-in queue was unbounded: capped at 20 waiting (then 503); backup folders dated in the future no longer stop pruning or hide a missing backup; 404 floods no longer fill the log; `TRUST_PROXY=false/no/off` means off; a non-numeric setting falls back to its default with a warning.
+Tried and reverted: wiping saved data on a 401 also erased unsynced offline work. The browser keeps the cache after the server ends a session: still open.
+
+Still open from round 3: starter quiz questions (the right answer is the longest option in 81 of 90: do NOT use the starter quiz as evidence for sign-off until a trainer rewrites it); approving unreviewed SAMPLE content takes one click; 20 addresses with one failure each can still lock an account (needs a spoofable proxy header or 20 real addresses); `support.scrub` misses some secret forms; `audit_log.ip` and EXIF are kept; server messages and the three quick-start guides still need the wording fixes in `docs/round2/reports/R3-guide-test-and-claims.md`; Docker files are the originals.
