@@ -7,6 +7,7 @@ A shared, installable web app for the ITS Events AV team: equipment library with
 | [`docs/DEPLOY.md`](docs/DEPLOY.md) | the team leader putting it on a server (plain language) |
 | [`docs/BACKUP.md`](docs/BACKUP.md) | restoring, practising a restore, or in an emergency |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | reviewing what was decided, the limits, and the open questions |
+| [`docs/REVIEW-2026-11.md`](docs/REVIEW-2026-11.md) | wondering what the ten pre-launch reviewers found, what was fixed, and what was left |
 | [`docs/PLAN.md`](docs/PLAN.md) | curious about the original Phase 1 plan (DECISIONS.md supersedes it where they differ) |
 
 ## Everyday commands

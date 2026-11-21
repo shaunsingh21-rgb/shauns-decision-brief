@@ -12,6 +12,8 @@ A backup is a folder named like `avl-backup-20261120-021500` containing:
 | `files/` | every uploaded photo and PDF (lesson videos stay in SharePoint, so they are not here — back SharePoint up as you normally do) |
 | `manifest.json` | when it was made, a checksum of the database, file count, number of accounts and administrators |
 
+The whole folder is private to its owner (mode 700, files 600). You may also notice SQLite's `-wal` and `-shm` helper files next to the live database on the server; they are part of how it works and are never in a backup (the backup is already a clean, complete copy).
+
 It **does contain people's account records and password hashes** (not passwords). Store it as carefully as the server itself.
 
 **It does not contain `MFA_ENCRYPTION_KEY`** (if you use two-step sign-in), by design: the authenticator secrets in a backup are encrypted with that key, which lives only in `.env`. **Keep a copy of the key in your password manager.** After a restore onto a new server, put the same key back in `.env`. If you cannot, nobody can use authenticator codes — people can still use their recovery codes, and an administrator can reset them (Admin → Reset two-step, or `reset-mfa`).
@@ -21,7 +23,8 @@ It **does contain people's account records and password hashes** (not passwords)
 * **Nightly at 02:15** (server time), automatically — by the `backup` container with Docker, or by the `avl-hub-backup.timer` without Docker.
 * After each backup the script **re-opens the copy, runs a database integrity check, and verifies the checksum**. A failed check makes the backup report `BACKUP FAILED` and exit with an error — it never silently keeps a bad copy.
 * The newest **14** are kept (`BACKUP_KEEP` changes this). Only folders named `avl-backup-…` are ever removed.
-* Make one right now, any time: `docker compose exec app node scripts/backup.js` (without Docker: `npm run backup`).
+* Make one right now, any time: `docker compose exec app node scripts/backup.js` (without Docker: `npm run backup`). Two backups in the same second are fine: the second takes the next free timestamp.
+* **Admin → Backups, export and import** shows the age of the newest backup (green within 36 hours, a warning after that).
 * Is it working? `docker compose exec app node scripts/doctor.js` prints the age of the newest backup. Without Docker the log is `backups/backup.log`.
 
 ### Get a copy off the server (important)
@@ -48,11 +51,11 @@ A backup on the same disk is lost if the disk is lost. Pick one:
    * damaged or modified (checksum does not match), or incomplete (a file is missing);
    * from a **newer** version of the app than the one installed;
    * **without any active administrator** (nobody could sign in afterwards);
-   * while the app is still running ("database is in use").
+   * while the app is **running**: the app writes a small signal file (`.avl-running`) next to the database every few seconds, and restore refuses if it is fresh, even when the restore is started from a different container. After a clean stop the signal is removed at once; after a crash or kill, wait about 20 seconds.
 4. **Start the app:** `docker compose up -d` (systemd: `sudo systemctl start avl-hub`).
 5. **Check:** sign in, open Equipment, open a photo panel, look at **Admin → Recent activity**. Run `doctor`.
 6. **Tell the team** that changes made between the backup and the failure are gone — and that people with unsynced changes on their phones will have those sent to the server when they reopen the app (the server decides what applies; see "Offline and sync" in the README).
-7. When you are sure all is well, `before-restore-<date>` can be deleted. Do not delete it sooner.
+7. When you are sure all is well, `before-restore-<date>` can be deleted. Do not delete it sooner. (`doctor` does not look for it; it is just a folder beside the database.)
 
 If an old backup comes from an older version of the app, the database is brought up to date automatically during the restore.
 

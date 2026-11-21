@@ -18,6 +18,8 @@ function sniff(buf) {
   if (buf.length >= 4 && buf[0] === 0x1a && buf[1] === 0x45 && buf[2] === 0xdf && buf[3] === 0xa3) return 'video/webm';
   return null;
 }
+// Browsers send the file name as UTF-8, but the multipart parser reads it as Latin-1, which turns "café.png" into "cafÃ©.png". Undo that, once.
+const fixName = n => { const s = String(n || ''); return /[\u0080-\u00ff]/.test(s) && !/[\u0100-\uffff]/.test(s) ? Buffer.from(s, 'latin1').toString('utf8') : s; };
 const safeName = n => (path.basename(String(n || 'file')).replace(/[\u0000-\u001f\u007f\\/:*?"<>|]/g, '_').trim().slice(0, 120)) || 'file';
 
 module.exports = function fileRoutes(api, ctx) {
@@ -26,12 +28,15 @@ module.exports = function fileRoutes(api, ctx) {
   const rate = require('../middleware/limits')(config);
   const tmpDir = path.join(config.uploadDir, '_tmp'), storeDir = path.join(config.uploadDir, 'files');
   fs.mkdirSync(tmpDir, { recursive: true }); fs.mkdirSync(storeDir, { recursive: true });
+  for (const f of fs.readdirSync(tmpDir)) fs.rmSync(path.join(tmpDir, f), { force: true });          // partial uploads left by a crash or restart
   const limits = { photo: config.maxPhotoMb, document: config.maxDocMb, video: config.maxVideoMb };
-  const upload = multer({
+  // One uploader per purpose, chosen from ?purpose=, so a photo is cut off at the PHOTO limit while it is still arriving (not after 200 MB is on disk).
+  const uploaders = Object.fromEntries(Object.keys(limits).map(k => [k, multer({
     storage: multer.diskStorage({ destination: tmpDir, filename: (_r, _f, cb) => cb(null, crypto.randomUUID()) }),
-    limits: { fileSize: Math.max(...Object.values(limits)) * 1048576, files: 1, fields: 4, parts: 6 },
-  }).single('file');
-  const receive = (req, res, next) => upload(req, res, e => {
+    limits: { fileSize: limits[k] * 1048576, files: 1, fields: 4, parts: 6 },
+  }).single('file')]));
+  const receive = (req, res, next) => (uploaders[req.query.purpose] || ((_q, _s, cb) => cb(new HttpError(400, 'BAD_PURPOSE', 'Say what is being uploaded: photo, document or video.'))))(req, res, e => {
+    if (e instanceof HttpError) return next(e);
     if (!e) return next();
     if (e.code === 'LIMIT_FILE_SIZE') return next(new HttpError(413, 'TOO_LARGE', 'That file is too large.'));
     next(new HttpError(400, 'BAD_UPLOAD', 'The upload could not be read.'));
@@ -42,6 +47,7 @@ module.exports = function fileRoutes(api, ctx) {
     const tmp = req.file && req.file.path;
     const bail = (status, code, msg) => { if (tmp) fs.rmSync(tmp, { force: true }); throw new HttpError(status, code, msg); };
     if (!req.file) bail(400, 'NO_FILE', 'Choose a file to upload.');
+    if (!req.body || req.body.purpose !== req.query.purpose) bail(400, 'PURPOSE_MISMATCH', 'The upload did not say consistently what it is.');
     let b;
     try { b = parse(z.object({ purpose: z.enum(['photo', 'document', 'video']), equipment_id: id.optional() }).strict(), req.body); }
     catch (e) { if (tmp) fs.rmSync(tmp, { force: true }); throw e; }
@@ -54,7 +60,7 @@ module.exports = function fileRoutes(api, ctx) {
     fs.renameSync(tmp, path.join(storeDir, fid));                          // stored under a random id: no user-controlled path or extension
     try {
       db.transaction(() => {
-        db.prepare('INSERT INTO files VALUES (?,?,?,?,?,?,?,?,NULL)').run(fid, b.purpose, mime, req.file.size, safeName(req.file.originalname), b.equipment_id || null, req.user.id, new Date().toISOString());
+        db.prepare('INSERT INTO files VALUES (?,?,?,?,?,?,?,?,NULL)').run(fid, b.purpose, mime, req.file.size, safeName(fixName(req.file.originalname)), b.equipment_id || null, req.user.id, new Date().toISOString());
         audit(req, 'file.upload', 'file', fid, { purpose: b.purpose, mime, size: req.file.size });
       })();
     } catch (e) { fs.rmSync(path.join(storeDir, fid), { force: true }); throw e; }

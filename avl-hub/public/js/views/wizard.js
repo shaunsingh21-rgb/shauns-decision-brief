@@ -8,16 +8,17 @@ const SUGGESTED = ['power', 'inputs', 'outputs', 'connectivity', 'dimensions', '
 export async function render(root) {
   const w = { step: 0, text: '', name: '', manufacturer: '', category: '', fields: [], results: null, snippets: [], draft: null, photoUrl: null };
   const draw = () => {
-    clear(root).append(h('p', {}, h('a', { href: '#/equipment' }, '← Cancel')), h('h1', {}, 'Add equipment'),
+    clear(root).append(h('p', {}, h('a', { href: '#/equipment' }, '← Cancel')), h('h1', { tabindex: '-1' }, 'Add equipment'),
       h('ol', { class: 'steps', 'aria-label': 'Progress' }, STEPS.map((s, i) => h('li', { 'aria-current': i === w.step ? 'step' : null }, `${i + 1}. ${s}`))),
       [stepPhoto, stepConfirm, stepResearch, stepReview][w.step](w, draw));
+    if (w.moved) { w.moved = false; root.querySelector('h1')?.focus({ preventScroll: true }); }        // after Next/Back, keyboard and screen-reader users start at the top of the new step
   };
   draw();
 }
 
 const nav = (w, draw, { next = 'Next', ok = () => true } = {}) => h('div', { class: 'row' },
-  w.step > 0 && h('button', { type: 'button', onclick: () => { w.step--; draw(); } }, 'Back'),
-  w.step < 3 && h('button', { type: 'button', class: 'primary', onclick: () => { if (ok()) { w.step++; draw(); } } }, next));
+  w.step > 0 && h('button', { type: 'button', onclick: () => { w.step--; w.moved = true; draw(); } }, 'Back'),
+  w.step < 3 && h('button', { type: 'button', class: 'primary', onclick: () => { if (ok()) { w.step++; w.moved = true; draw(); } } }, next));
 
 // ---- 1. Photo + OCR (OCR runs in the browser; the photo is not uploaded) ----
 function stepPhoto(w, draw) {
@@ -138,7 +139,10 @@ function stepReview(w, draw) {
       if (!noteQueued(first) && !noteQueued(second)) toast(submit ? 'Saved and submitted for review.' : 'Saved as a draft.'); navigate(`#/equipment/${eid}`);
     } catch (x) { err.replaceChildren(h('div', { class: 'notice bad' }, errMsg(x), x.data?.details ? ' ' + x.data.details.map(d => d.message).join('; ') : '')); }
   };
-  return h('div', {}, h('h2', {}, w.name), h('div', { class: 'notice' }, 'Anything left as VERIFY is saved as “not confirmed”. Nothing is filled in by guessing.'),
+  // What was read from the label stays visible here, so it can be used to fill in the rows below, or kept as a note.
+  const labelCard = w.text.trim() && h('div', { class: 'card' }, h('strong', {}, 'The label text you confirmed'), h('p', { class: 'pre' }, w.text.trim()),
+    h('button', { type: 'button', onclick: () => { addField(w, { key: 'label_text', value: w.text.trim().slice(0, 2000), provenance: 'team' }); toast('Kept as a Team note.'); draw(); } }, 'Keep this as a Team note'));
+  return h('div', {}, h('h2', {}, w.name), labelCard, h('div', { class: 'notice' }, 'Anything left as VERIFY is saved as “not confirmed”. Nothing is filled in by guessing.'),
     h('div', { class: 'scroll' }, h('table', {}, h('thead', {}, h('tr', {}, ['Item', 'Value', 'Source'].map(t => h('th', { scope: 'col' }, t)))), h('tbody', {}, rows))), err,
     h('div', { class: 'row' }, nav(w, draw), h('button', { type: 'button', onclick: () => save(false) }, 'Save as draft'), h('button', { type: 'button', class: 'primary', onclick: () => save(true) }, 'Save and submit for review')));
 }

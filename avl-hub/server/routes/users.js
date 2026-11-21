@@ -15,13 +15,19 @@ module.exports = function userRoutes(api, ctx) {
   const roles = ctx.roles;
   const withRole = u => u && ({ ...u, role_name: (roles.get(u.role) || {}).name || u.role });
   const get = uid => withRole(db.prepare(`SELECT ${cols} FROM users WHERE id=?`).get(uid));
+  // Who is locked out right now (any address), so an administrator can see it instead of guessing.
+  const lockInfo = name => {
+    const k = name.toLowerCase(), pre = `ip:${k}|`;
+    const rows = db.prepare('SELECT locked_until FROM login_failures WHERE (key=? OR substr(key,1,?)=?) AND locked_until > ?').all(`all:${k}`, pre.length, pre, new Date().toISOString());
+    return rows.length ? { locked: true, locked_minutes: Math.max(1, Math.ceil((Math.max(...rows.map(r => Date.parse(r.locked_until))) - Date.now()) / 60000)) } : { locked: false, locked_minutes: 0 };
+  };
   const roleOk = rid => { if (!roles.get(rid)) throw new HttpError(400, 'BAD_ROLE', 'That role does not exist.'); };
   const mayAssign = (req, rid) => { if (!roles.outranks(req.permissions, rid)) throw new HttpError(403, 'TOO_POWERFUL', TOO_MUCH); };
   const mayManage = (req, u) => { if (!roles.outranks(req.permissions, u.role)) throw new HttpError(403, 'TOO_POWERFUL', 'This person’s role has more power than yours, so you cannot change their account.'); };
   const activeAdmins = () => db.prepare("SELECT COUNT(*) n FROM users WHERE role='admin' AND disabled=0").get().n;
   const need = uid => { const u = get(uid); if (!u) throw new HttpError(404, 'NOT_FOUND', 'User not found.'); return u; };
 
-  api.get('/users', P('users.manage'), async (req, res) => res.json({ users: db.prepare(`SELECT ${cols} FROM users ORDER BY username`).all().map(u => ({ ...withRole(u), can_manage: roles.outranks(req.permissions, u.role), mfa_enabled: ctx.mfa.enabled(u.id) })) }));
+  api.get('/users', P('users.manage'), async (req, res) => res.json({ users: db.prepare(`SELECT ${cols} FROM users ORDER BY username`).all().map(u => ({ ...withRole(u), can_manage: roles.outranks(req.permissions, u.role), mfa_enabled: ctx.mfa.enabled(u.id), ...lockInfo(u.username) })) }));
 
   // Directory visible to every signed-in user (needed for trainee pickers); no sensitive columns.
   api.get('/people', 'any', async (_req, res) =>
@@ -36,11 +42,13 @@ module.exports = function userRoutes(api, ctx) {
     if (db.prepare('SELECT 1 FROM users WHERE username=?').get(b.username)) throw new HttpError(409, 'USERNAME_TAKEN', 'That username already exists.');
     const hash = await auth.provider.hashPassword(temp);
     const uid = crypto.randomUUID(), now = new Date().toISOString();
-    db.transaction(() => {
-      db.prepare(`INSERT INTO users (id,username,display_name,role,password_hash,must_change_password,auth_provider,created_at,updated_at)
-                  VALUES (?,?,?,?,?,1,'local',?,?)`).run(uid, b.username, b.display_name, b.role, hash, now, now);
-      audit(req, 'user.create', 'user', uid, { username: b.username, role: b.role });
-    })();
+    try {
+      db.transaction(() => {
+        db.prepare(`INSERT INTO users (id,username,display_name,role,password_hash,must_change_password,auth_provider,created_at,updated_at)
+                    VALUES (?,?,?,?,?,1,'local',?,?)`).run(uid, b.username, b.display_name, b.role, hash, now, now);
+        audit(req, 'user.create', 'user', uid, { username: b.username, role: b.role });
+      })();
+    } catch (e) { if (/UNIQUE/.test(e.message)) throw new HttpError(409, 'USERNAME_TAKEN', 'That username already exists.'); throw e; }     // two admins (or a double-click) creating the same name at once
     // The temporary password is shown exactly once, to the admin, and is never stored in plain text.
     res.status(201).json({ user: get(uid), temporary_password: temp });
   });
@@ -70,7 +78,7 @@ module.exports = function userRoutes(api, ctx) {
     db.transaction(() => {
       db.prepare('UPDATE users SET password_hash=?, must_change_password=1, updated_at=? WHERE id=?').run(hash, new Date().toISOString(), uid);
       auth.sessions.destroyAllForUser(uid);
-      db.prepare('DELETE FROM login_failures WHERE key=?').run(cur.username.toLowerCase());
+      auth.provider.clearAll(cur.username);
       audit(req, 'user.reset_password', 'user', uid);
     })();
     res.json({ temporary_password: temp });
@@ -86,7 +94,7 @@ module.exports = function userRoutes(api, ctx) {
   api.post('/users/:id/unlock', P('users.manage'), limits.sensitive, async (req, res) => {
     const cur = need(parse(id, req.params.id)); mayManage(req, cur);
     db.transaction(() => {
-      db.prepare('DELETE FROM login_failures WHERE key=?').run(cur.username.toLowerCase());
+      auth.provider.clearAll(cur.username);
       audit(req, 'user.unlock', 'user', cur.id);
     })();
     res.json({ ok: true });
@@ -116,6 +124,12 @@ module.exports = function userRoutes(api, ctx) {
   api.get('/audit', P('audit.view'), async (req, res) => {
     const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 100));
     const before = parseInt(req.query.before, 10) || Number.MAX_SAFE_INTEGER;
-    res.json({ entries: db.prepare('SELECT * FROM audit_log WHERE id < ? ORDER BY id DESC LIMIT ?').all(before, limit) });
+    // Names for what each entry is about, so the screen can say who and what instead of showing ids.
+    const one = (sql, v) => { const r = db.prepare(sql).get(v); return r ? Object.values(r)[0] : null; };
+    const nameOf = { user: v => one('SELECT username FROM users WHERE id=?', v), role: v => (roles.get(v) || {}).name || null, equipment: v => one('SELECT name FROM equipment WHERE id=?', v),
+      module: v => one('SELECT title FROM training_modules WHERE id=?', v), panel: v => one('SELECT title FROM photo_panels WHERE id=?', v), issue: v => one('SELECT title FROM issues WHERE id=?', v),
+      file: v => one('SELECT original_name FROM files WHERE id=?', v), source_domain: v => v };
+    const rows = db.prepare('SELECT * FROM audit_log WHERE id < ? ORDER BY id DESC LIMIT ?').all(before, limit);
+    res.json({ entries: rows.map(e => ({ ...e, target: e.entity && e.entity_id && nameOf[e.entity] ? nameOf[e.entity](e.entity_id) : null })), has_more: rows.length === limit });
   });
 };

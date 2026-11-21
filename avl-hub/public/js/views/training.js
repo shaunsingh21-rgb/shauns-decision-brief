@@ -1,4 +1,4 @@
-import { h, clear, field, select, statusBadge } from '../dom.js';
+import { h, clear, field, select, statusBadge, fmtDate, plural } from '../dom.js';
 import { get, post, del, upload, mutate } from '../api.js';
 import { mmss, parseTime } from '../media.js';
 import { can, toast, errMsg, state, noteQueued } from '../app.js';
@@ -20,7 +20,7 @@ async function overview(root) {
       return h('a', { class: 'card link', href: `#/training/${m.id}` }, h('strong', {}, m.title), h('div', { class: 'row' }, statusBadge(m.status)),
         h('div', { class: 'hint' }, `Written: ${p?.written.best_pct != null ? p.written.best_pct + '%' + (p.written.passed ? ' ✓ passed' : ' — not yet') : 'not taken'}`),
         h('div', { class: 'hint' }, `Practical: ${p?.practical.has_skills ? (p.practical.passed ? '✓ passed' : 'in progress') : 'no skills yet'}`),
-        p?.signed_off && h('div', { class: 'badge b-approved' }, 'Signed off')); })) : h('p', { class: 'hint' }, 'No modules at this level yet.'));
+        p?.signed_off && (p.signed_off.stale ? h('div', { class: 'badge b-needs_review' }, 'Signed off · material changed since') : h('div', { class: 'badge b-approved' }, 'Signed off'))); })) : h('p', { class: 'hint' }, 'No modules at this level yet.'));
   }
 }
 
@@ -46,16 +46,21 @@ async function moduleView(root, id) {
   const w = h('div', { class: 'card' }, h('h2', {}, 'Written quiz'));
   if (!m.quiz.length) w.append(h('p', { class: 'hint' }, 'No quiz questions yet.'));
   else if (can(...LEARN)) {
-    const picks = {}; const result = h('div', { role: 'status' });
-    w.append(h('p', { class: 'hint' }, `Pass mark ${me.written.pass_pct}%. Your best: ${me.written.best_pct ?? 'not taken'}${me.written.best_pct != null ? '%' : ''}.`),
+    const picks = {}; const result = h('div', { role: 'status', 'aria-live': 'polite' });
+    const bestText = pct => `Pass mark ${me.written.pass_pct}%. Your best: ${pct == null ? 'not taken yet' : pct + '%'}.`;
+    const best = h('p', { class: 'hint' }, bestText(me.written.best_pct)); let bestPct = me.written.best_pct;
+    w.append(best,
       ...m.quiz.map((q, i) => h('fieldset', {}, h('legend', {}, `${i + 1}. ${q.prompt}`), q.options.map((o, j) => h('label', { class: 'opt plain' },
         h('input', { type: 'radio', name: q.id, onchange: () => picks[q.id] = j }), o)))),
-      h('button', { class: 'primary', onclick: async () => {
+      result, h('button', { class: 'primary', onclick: async () => {
+        const blank = m.quiz.length - Object.keys(picks).length;
+        if (blank > 0) return clear(result).append(h('div', { class: 'notice bad', role: 'alert' }, `Answer every question first (${plural(blank, 'one is', 'ones are')} still blank).`));
         try { const r = await mutate('POST', `/modules/${id}/quiz-attempts`, { answers: picks }, { label: `Quiz answers for “${m.title}”` });
           if (r.queued) return clear(result).append(h('div', { class: 'notice' }, 'Your answers are saved on this device. They are graded when you’re back online, and your score will show here then.'));
-          clear(result).append(h('div', { class: `notice ${r.passed ? 'ok' : 'bad'}` }, `${r.correct} of ${r.total} correct — ${r.score_pct}%. ${r.passed ? 'Passed.' : `You need ${r.pass_pct}% to pass. You can try again.`}`)); }
-        catch (x) { toast(errMsg(x)); } } }, 'Submit answers'), result);
-  } else w.append(h('p', { class: 'hint' }, `${m.quiz.length} question(s). Viewers can’t take quizzes.`));
+          bestPct = Math.max(bestPct ?? 0, r.score_pct); best.textContent = bestText(bestPct);
+          clear(result).append(h('div', { class: `notice ${r.passed ? 'ok' : 'bad'}` }, `Score ${r.score_pct}%. ${r.passed ? 'Passed.' : `You need ${r.pass_pct}% to pass. Review the material and try again.`}`)); }
+        catch (x) { clear(result).append(h('div', { class: 'notice bad', role: 'alert' }, errMsg(x))); } } }, 'Submit answers'));
+  } else w.append(h('p', { class: 'hint' }, `${plural(m.quiz.length, 'question')}. Your role can’t take quizzes.`));
   if (can(...AUTHORS)) w.append(h('h3', {}, 'Questions (trainer view)'), h('ul', {}, m.quiz.map(q => h('li', {}, q.prompt, ' — answer: ', q.options[q.correct_index], ' ',
     h('button', { class: 'danger', 'aria-label': `Remove question ${q.prompt}`, onclick: run(() => del(`/questions/${q.id}`)) }, 'Remove')))), questionForm(id, reload));
 
@@ -65,6 +70,13 @@ async function moduleView(root, id) {
       can(...AUTHORS) && ' ', can(...AUTHORS) && h('button', { class: 'danger', 'aria-label': `Remove skill ${s.name}`, onclick: run(() => del(`/skills/${s.skill_id}`)) }, 'Remove')))) : h('p', { class: 'hint' }, 'No skills defined yet.'));
   if (can(...AUTHORS)) p.append(skillForm(id, reload));
 
+  // Who signed this person off, when, and whether the material has changed since (the sign-off stays on record either way).
+  if (me.signed_off) {
+    const { people } = await get('/people').catch(() => ({ people: [] })); const by = (people.find(x => x.id === me.signed_off.by) || {}).display_name || 'a trainer';
+    root.append(h('div', { class: `notice ${me.signed_off.stale ? '' : 'ok'}` }, me.signed_off.stale
+      ? `You were signed off by ${by} on ${fmtDate(me.signed_off.at)}, but this material has changed since. Ask a trainer to renew your sign-off.`
+      : `Signed off by ${by} on ${fmtDate(me.signed_off.at)}.`));
+  }
   root.append(w, p, await videosCard(m, id, reload));
   if (can('training.score', 'training.signoff')) root.append(await trainerPanel(m, reload));
   if (can('training.author', 'training.approve')) root.append(h('div', { class: 'card' }, h('h2', {}, 'Review'), h('div', { class: 'row' },
@@ -91,15 +103,15 @@ async function trainerPanel(m, reload) {
   sel.addEventListener('change', async () => {
     clear(body); if (!sel.value) return;
     const { progress } = await get(`/progress/${sel.value}`); const t = progress.find(x => x.module_id === m.id);
-    const scoreSel = {};
+    const scoreSel = {}; const noteBox = h('input', { maxlength: 500 });
     body.append(h('p', {}, `Written: ${t.written.best_pct ?? 'not taken'}${t.written.best_pct != null ? '%' : ''} ${t.written.passed ? '✓' : ''}`),
       ...t.practical.skills.map(s => { const sc = select(RUBRIC, s.score ?? 0); scoreSel[s.skill_id] = sc; sc.setAttribute('aria-label', `Score for ${s.name}`);
         if (!can('training.score')) return h('div', { class: 'row' }, h('span', { class: 'grow' }, `${s.name} (now: ${s.score ?? 'unscored'})`));
         return h('div', { class: 'row' }, h('span', { class: 'grow' }, `${s.name} (now: ${s.score ?? 'unscored'})`), sc,
-          h('button', { onclick: async () => { try { const r = await mutate('POST', '/practical-scores', { trainee_id: sel.value, skill_id: s.skill_id, score: +sc.value }, { label: `Score “${s.name}”` }); if (!noteQueued(r)) toast('Score saved.'); sel.dispatchEvent(new Event('change')); } catch (x) { toast(errMsg(x)); } } }, 'Save score')); }),
-      t.signed_off ? h('div', { class: 'notice ok' }, 'Signed off.') : !can('training.signoff') ? null : m.status !== 'approved' ? h('div', { class: 'notice' }, 'This module must be approved before anyone can be signed off on it.') : h('button', { class: 'primary', onclick: async () => {
-        try { const r = await mutate('POST', '/signoffs', { trainee_id: sel.value, module_id: m.id }, { label: `Sign off on “${m.title}”` }); if (!noteQueued(r)) toast('Signed off.'); await reload(); }
-        catch (x) { body.append(h('div', { class: 'notice bad', role: 'alert' }, errMsg(x), x.data?.missing ? h('ul', {}, x.data.missing.map(t2 => h('li', {}, t2))) : null)); } } }, 'Sign off this trainee'));
+          h('button', { onclick: async () => { try { const r = await mutate('POST', '/practical-scores', { trainee_id: sel.value, skill_id: s.skill_id, score: +sc.value }, { label: `Score “${s.name}”` }); if (!noteQueued(r)) toast(r.signed_off_warning ? 'Score saved. This person is already signed off; the sign-off stays on record, so check it still stands.' : 'Score saved.'); sel.dispatchEvent(new Event('change')); } catch (x) { toast(errMsg(x)); } } }, 'Save score')); }),
+      t.signed_off && !t.signed_off.stale ? h('div', { class: 'notice ok' }, `Signed off on ${fmtDate(t.signed_off.at)}.`) : !can('training.signoff') ? null : m.status !== 'approved' ? h('div', { class: 'notice' }, 'This module must be approved before anyone can be signed off on it.') : h('div', {}, t.signed_off && t.signed_off.stale && h('div', { class: 'notice' }, 'This person was signed off on an earlier version. The material has changed since, so the sign-off can be renewed once they meet the current requirements.'), field('Note for the record (optional)', noteBox), h('button', { class: 'primary', onclick: async () => {
+        try { const r = await mutate('POST', '/signoffs', { trainee_id: sel.value, module_id: m.id, ...(noteBox.value.trim() ? { note: noteBox.value.trim() } : {}) }, { label: `Sign off on “${m.title}”` }); if (!noteQueued(r)) toast('Signed off.'); await reload(); }
+        catch (x) { body.append(h('div', { class: 'notice bad', role: 'alert' }, errMsg(x), x.data?.missing ? h('ul', {}, x.data.missing.map(t2 => h('li', {}, t2))) : null)); } } }, t.signed_off && t.signed_off.stale ? 'Renew the sign-off' : 'Sign off this trainee')));
   });
   return h('div', { class: 'card' }, h('h2', {}, 'Trainer: score and sign off'), h('p', { class: 'hint' }, 'You can’t score or sign off yourself.'), field('Trainee', sel), body);
 }
@@ -119,7 +131,7 @@ function checkpointUi(c, { onAnswered } = {}) {
   const prior = c.answered ? h('span', { class: `badge ${c.answered.correct ? 'b-approved' : 'b-needs_review'}` }, c.answered.correct ? 'Answered correctly' : 'Answered — review it') : null;
   const box = h('fieldset', { class: 'checkpoint' }, h('legend', {}, `Checkpoint at ${mmss(c.at_seconds)}: ${c.prompt}`), prior,
     c.options.map((o, j) => h('label', { class: 'opt plain' }, h('input', { type: 'radio', name: `cp${c.id}`, onchange: () => choice = j }), o)),
-    h('button', { onclick: async () => {
+    !can('training.take') ? h('p', { class: 'hint' }, 'Your role can’t answer checkpoints.') : h('button', { onclick: async () => {
       if (choice == null) return toast('Choose an answer.');
       try { const r = await mutate('POST', `/checkpoints/${c.id}/answer`, { choice }, { label: 'Video checkpoint answer' }); if (r.queued) return out.replaceChildren(h('div', { class: 'notice' }, 'Answer saved on this device. Feedback appears once you’re back online.')); out.replaceChildren(h('div', { class: `notice ${r.correct ? 'ok' : 'bad'}` }, r.correct ? 'Correct.' : `Not quite. The answer is: ${c.options[r.correct_index]}.`)); onAnswered?.(r); }
       catch (x) { toast(errMsg(x)); } } }, 'Check answer'), out);

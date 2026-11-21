@@ -1,17 +1,18 @@
 import { h, clear, field } from '../dom.js';
 import { get, post } from '../api.js';
-import { state, toast, errMsg } from '../app.js';
+import { state, toast, errMsg, signOut } from '../app.js';
 
 export async function render(root) {
   const mfa = await get('/auth/mfa');
-  root.append(h('h1', {}, 'My account'), profile(), passwordCard(), h('h2', {}, 'Two-step sign-in'), mfaCard(mfa, () => { clear(root); render(root); }));
+  root.append(h('h1', {}, 'My account'), profile(), passwordCard(), h('h2', {}, 'Two-step sign-in'), mfaCard(mfa, () => { clear(root); render(root); }),
+    h('h2', {}, 'Sign out'), h('div', { class: 'card' }, h('p', { class: 'hint' }, 'Signing out removes your saved copy of the app’s data from this device.'), h('button', { onclick: signOut }, 'Sign out')));
 }
 
 // Shown instead of the app when the person's role requires two-step sign-in and they have not set it up yet.
 export async function renderForcedEnrol(root, onDone, signOut) {
   const mfa = await get('/auth/mfa');
   // replaceChildren (not append): if two navigations overlap, the page still ends up with exactly one copy of this screen.
-  root.replaceChildren(h('div', { class: 'login' }, h('h1', {}, 'Set up two-step sign-in'),
+  root.replaceChildren(h('main', { class: 'login', id: 'main' }, h('h1', {}, 'Set up two-step sign-in'),
     h('div', { class: 'notice' }, 'Your role requires two-step sign-in. Set it up now to continue. It takes about a minute.'),
     mfaCard(mfa, async () => onDone((await get('/me')).user)), h('p', {}, h('button', { onclick: signOut }, 'Sign out'))));
 }

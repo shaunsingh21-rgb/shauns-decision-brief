@@ -3,6 +3,7 @@
 services:
   app:
     build: .
+    init: true                  # a proper PID 1, so `docker compose stop` shuts the app down cleanly instead of waiting and killing it
     restart: unless-stopped
     env_file: .env
     environment:
@@ -29,11 +30,14 @@ services:
     # Runs the nightly backup at 02:15 server time. Backups land in the same data volume under /data/backups;
     # set BACKUP_COPY_TO (in .env) to ALSO copy each one somewhere else, and copy that off the machine.
     build: .
+    init: true
     restart: unless-stopped
+    healthcheck: { disable: true }   # this container runs no web server, so the image's web health check does not apply
     env_file: .env
     environment: { DB_PATH: /data/avl-hub.db, UPLOAD_DIR: /data/uploads, BACKUP_DIR: /data/backups }
     volumes:
       - avl-data:/data
+      - ${OFFSITE_DIR:-./offsite}:/offsite      # set BACKUP_COPY_TO=/offsite in .env: each night's backup is ALSO copied to this folder on the server (point OFFSITE_DIR at a mounted share)
     entrypoint: ["sh", "-c", "while true; do now=$$(date +%s); next=$$(date -d 'today 02:15' +%s); [ $$next -le $$now ] && next=$$(date -d 'tomorrow 02:15' +%s); sleep $$((next-now)); node scripts/backup.js || echo BACKUP-FAILED; done"]
 volumes:
   avl-data:

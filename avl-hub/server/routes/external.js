@@ -19,7 +19,7 @@ module.exports = function externalRoutes(api, ctx) {
   // Official sources only: the query is restricted to admin-listed domains AND results are re-filtered here.
   api.post('/research', P('research.use'), limiter, async (req, res) => {
     const b = parse(z.object({ query: text(200, 3) }).strict(), req.body);
-    if (!config.braveApiKey) throw new HttpError(503, 'NOT_CONFIGURED', 'Web search is not configured on this server (BRAVE_API_KEY).');
+    if (!config.braveApiKey) throw new HttpError(503, 'NOT_CONFIGURED', 'Web search is not set up on this server. Ask your administrator. You can skip this step.');
     const list = domains().slice(0, 10);
     if (!list.length) throw new HttpError(409, 'NO_SOURCES', 'No official source domains are listed yet. An administrator must add some first.');
     const q = `${b.query} (${list.map(d => `site:${d}`).join(' OR ')})`;
@@ -39,7 +39,7 @@ module.exports = function externalRoutes(api, ctx) {
   // The draft is returned labelled "ai" and is NEVER saved or approved here; a human must accept it into a record.
   api.post('/ai/draft', P('research.use'), limiter, async (req, res) => {
     const b = parse(z.object({ source_text: text(6000, 10), purpose: z.enum(['description', 'install_notes']).default('description') }).strict(), req.body);
-    if (!config.anthropicApiKey) throw new HttpError(503, 'NOT_CONFIGURED', 'AI drafting is not configured on this server (ANTHROPIC_API_KEY).');
+    if (!config.anthropicApiKey) throw new HttpError(503, 'NOT_CONFIGURED', 'AI drafting is not set up on this server. Ask your administrator. You can skip this step.');
     const ask = b.purpose === 'install_notes' ? 'Draft short setup/installation notes' : 'Draft a two-sentence plain description';
     let r;
     try {

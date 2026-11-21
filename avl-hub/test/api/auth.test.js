@@ -48,7 +48,7 @@ test('lockout expires after the lockout window', async () => {
   const c = h.client();
   for (let i = 0; i < 3; i++) await c.login('expiry', 'bad-password-1234');
   assert.equal((await c.login('expiry', PW)).status, 429);
-  h.db.prepare("UPDATE login_failures SET locked_until=? WHERE key='expiry'").run(new Date(Date.now() - 1000).toISOString());
+  h.db.prepare("UPDATE login_failures SET locked_until=?").run(new Date(Date.now() - 1000).toISOString());
   assert.equal((await c.login('expiry', PW)).status, 200);
 });
 

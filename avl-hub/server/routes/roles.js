@@ -24,6 +24,8 @@ module.exports = function roleRoutes(api, ctx) {
     if (over.length) throw new HttpError(403, 'TOO_POWERFUL', 'You can only give permissions that you have yourself.', { not_permitted: over });
   };
   const mayChange = (req, rid) => { if (!roles.outranks(req.permissions, rid)) throw new HttpError(403, 'TOO_POWERFUL', 'This role has more power than yours, so you cannot change it.'); };
+  // Whether a role must use two-step sign-in is a security policy: only someone holding every permission (Leader/Admin) may change it.
+  const policyOnly = req => { if (req.permissions.size < KEYS.length) throw new HttpError(403, 'TOO_POWERFUL', 'Only a Leader/Admin can change whether a role requires two-step sign-in.'); };
   const needMfaConfigured = want => { if (want && !config.mfaEncryptionKey) throw new HttpError(400, 'MFA_NOT_CONFIGURED', 'Two-step sign-in is not set up on this server (MFA_ENCRYPTION_KEY), so it cannot be required.'); };
   const setPerms = (rid, list) => {
     db.prepare('DELETE FROM role_permissions WHERE role_id=?').run(rid);
@@ -37,7 +39,7 @@ module.exports = function roleRoutes(api, ctx) {
   api.post('/roles', P('roles.manage'), rate.sensitive, async (req, res) => {
     const b = parse(z.object({ name: text(40, 2), description: text(300).default(''), permissions: perms, require_mfa: z.boolean().default(false) }).strict(), req.body);
     if (nameTaken(b.name)) throw new HttpError(409, 'NAME_TAKEN', 'A role with that name already exists.');
-    mayGrant(req, b.permissions); needMfaConfigured(b.require_mfa);
+    mayGrant(req, b.permissions); if (b.require_mfa) policyOnly(req); needMfaConfigured(b.require_mfa);
     const rid = crypto.randomUUID();
     db.transaction(() => {
       db.prepare('INSERT INTO roles (id,name,description,is_system,require_mfa,created_at,updated_at) VALUES (?,?,?,0,?,?,?)').run(rid, b.name, b.description, +b.require_mfa, now(), now());
@@ -57,7 +59,7 @@ module.exports = function roleRoutes(api, ctx) {
     if (b.name && nameTaken(b.name, rid)) throw new HttpError(409, 'NAME_TAKEN', 'A role with that name already exists.');
     const before = [...roles.permissionsOf(rid)].sort();
     if (b.permissions) mayGrant(req, b.permissions.filter(p => !before.includes(p)));          // taking permissions away is always allowed; adding needs you to hold them
-    if (b.require_mfa !== undefined) needMfaConfigured(b.require_mfa);
+    if (b.require_mfa !== undefined && b.require_mfa !== !!cur.require_mfa) { policyOnly(req); needMfaConfigured(b.require_mfa); }
     db.transaction(() => {
       db.prepare('UPDATE roles SET name=?,description=?,require_mfa=?,updated_at=? WHERE id=?').run(b.name ?? cur.name, b.description ?? cur.description, b.require_mfa === undefined ? cur.require_mfa : +b.require_mfa, now(), rid);
       if (b.permissions) setPerms(rid, b.permissions);

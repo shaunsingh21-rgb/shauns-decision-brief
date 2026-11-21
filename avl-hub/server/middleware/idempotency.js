@@ -1,8 +1,10 @@
 'use strict';
 const { HttpError } = require('../lib/errors');
 // Same user + same Idempotency-Key => replay the stored successful response; never run the change twice.
+// Replays are never stored for anything that carries a credential or manages access (temporary passwords, recovery codes, roles).
+const NEVER_STORE = /^\/api\/(auth|users|roles|admin)(\/|$)/;
 module.exports = ({ db }) => (req, res, next) => {
-  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || !req.user) return next();
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || !req.user || NEVER_STORE.test(req.originalUrl.split('?')[0])) return next();
   const key = req.get('idempotency-key'); if (!key) return next();
   if (!/^[A-Za-z0-9_-]{16,80}$/.test(key)) return next(new HttpError(400, 'BAD_IDEMPOTENCY_KEY', 'Invalid idempotency key.'));
   const path = req.originalUrl.split('?')[0];

@@ -1,4 +1,5 @@
-import { h, clear, field, select, provBadge, statusBadge, PROV } from '../dom.js';
+import { h, clear, field, select, provBadge, statusBadge, PROV, plural } from '../dom.js';
+const SRC = { manufacturer: 'M', team: 'T', ai: 'AI', verify: '?' };
 import { get, post, del, mutate } from '../api.js';
 import { can, toast, errMsg, navigate, noteQueued } from '../app.js';
 
@@ -18,6 +19,7 @@ export async function render(root, { arg }) {
     const b = h('button', { type: 'button', class: `pin b-${quiz ? 'team' : p.provenance}${active ? ' active' : ''}`,
       'aria-label': quiz ? `Pin ${i + 1}` : `Pin ${i + 1}: ${p.label || 'not identified (VERIFY)'}. Source: ${PROV[p.provenance]}`,
       onclick: () => { if (!quiz) { state.selected = p.id; state.mode = 'view'; draw(); } } }, String(i + 1));
+    if (!quiz) b.append(h('span', { class: 'src', 'aria-hidden': 'true' }, SRC[p.provenance]));      // a letter as well as a colour, so the source is not shown by tint alone
     b.style.left = `${p.x * 100}%`; b.style.top = `${p.y * 100}%`;                // CSSOM, not an inline style attribute (CSP-safe)
     return b;
   };
@@ -26,10 +28,14 @@ export async function render(root, { arg }) {
   function draw() {
     clear(stage).append(img);
     if (state.mode === 'quiz') return quiz.draw();
-    panel.pins.forEach((p, i) => stage.append(pinBtn(p, i)));
+    stage.classList.toggle('placing', state.mode === 'place');                     // while placing, a tap goes to the photo even on top of an existing pin
+    panel.pins.forEach((p, i) => stage.append(pinBtn(p, i, { active: state.mode === 'view' && p.id === state.selected })));
     if (state.mode === 'place') stage.append(state.cross.el);
+    if (state.mode === 'form' && state.draft) { const m = h('div', { class: 'cross static', 'aria-hidden': 'true' }); m.style.left = `${state.draft.x * 100}%`; m.style.top = `${state.draft.y * 100}%`; stage.append(m); }   // show where the pin will go
+    // The selected pin's details come first (right under the photo); the actions follow.
     clear(side).append(...[state.mode === 'place' ? placeHelp() : state.mode === 'form' ? pinForm() : null,
-      state.mode === 'view' ? actions() : null, state.mode === 'view' ? detail() : null, state.mode === 'view' ? pinList() : null].filter(Boolean));
+      state.mode === 'view' ? detail() : null, state.mode === 'view' ? actions() : null, state.mode === 'view' ? pinList() : null].filter(Boolean));
+    if (state.mode === 'form') { const f = side.querySelector('form'); if (f) { f.scrollIntoView({ block: 'nearest' }); const first = f.querySelector('input:not([disabled])'); if (first) first.focus({ preventScroll: true }); } }
   }
 
   // ---- keyboard-operable placement: arrows move, Enter places, Escape cancels. Pointer/touch also works. ----
@@ -54,14 +60,15 @@ export async function render(root, { arg }) {
     const r = img.getBoundingClientRect(); if (!r.width) return;
     state.cross.pos.x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); state.cross.pos.y = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)); state.cross.done();
   });
-  const placeHelp = () => h('div', { class: 'notice' }, h('strong', {}, 'Placing a pin. '), 'Tap the photo, or use the arrow keys on the marker (hold Shift for bigger steps) and press Enter. Press Escape to cancel.',
+  const placeHelp = () => h('div', { class: 'notice' }, h('strong', {}, 'Placing a pin. '), 'Tap the photo where the pin goes. (With a keyboard: arrow keys move the marker, Shift for bigger steps, Enter places it, Escape cancels.)',
     h('div', { class: 'row' }, h('button', { onclick: () => state.cross.done() }, 'Place pin here'), h('button', { onclick: () => { state.mode = 'view'; draw(); } }, 'Cancel')));
 
   function pinForm() {
     const d = state.draft;
     const label = h('input', { value: d.label, maxlength: 120, disabled: d.provenance === 'verify', oninput: e => d.label = e.target.value });
     const note = h('textarea', { maxlength: 1000, oninput: e => d.note = e.target.value }, d.note);
-    const prov = select(Object.entries(PROV), d.provenance); prov.addEventListener('change', () => { d.provenance = prov.value; if (d.provenance === 'verify') d.label = ''; pinFormRedraw(); });
+    // Switching to VERIFY blanks the label (an unidentified pin has none) but remembers what was typed, in case it was a slip.
+    const prov = select(Object.entries(PROV), d.provenance); prov.addEventListener('change', () => { if (prov.value === 'verify') { d.kept = d.label; d.label = ''; } else if (!d.label && d.kept) d.label = d.kept; d.provenance = prov.value; pinFormRedraw(); });
     const src = h('input', { value: d.source_url, placeholder: 'https:// page this comes from', oninput: e => d.source_url = e.target.value });
     const xi = h('input', { type: 'number', min: 0, max: 100, value: pct(d.x), oninput: e => d.x = Math.min(1, Math.max(0, +e.target.value / 100)) });
     const yi = h('input', { type: 'number', min: 0, max: 100, value: pct(d.y), oninput: e => d.y = Math.min(1, Math.max(0, +e.target.value / 100)) });
@@ -95,7 +102,7 @@ export async function render(root, { arg }) {
     h('button', { onclick: () => { quiz.start(); } }, 'Quiz me'),
     can(...EDIT) && panel.status === 'draft' && h('button', { onclick: run(() => mutate('POST', `/panels/${panel.id}/submit-review`, {}, { label: `Submit “${panel.title}” for review` })) }, 'Submit for review'),
     can('equipment.approve') && panel.status !== 'approved' && !panel.verify_count && h('button', { class: 'primary', onclick: run(() => mutate('POST', `/panels/${panel.id}/approve`, { reviewed_version: panel.version }, { label: `Approve “${panel.title}”` })) }, 'Approve')),
-    can('equipment.approve') && panel.status !== 'approved' && panel.verify_count > 0 && h('div', {}, h('div', { class: 'notice' }, `${panel.verify_count} pin(s) are still VERIFY. Resolve them, or approve with an explicit override.`),
+    can('equipment.approve') && panel.status !== 'approved' && panel.verify_count > 0 && h('div', {}, h('div', { class: 'notice' }, `${plural(panel.verify_count, 'pin is', 'pins are')} still VERIFY. Resolve them, or approve with an explicit override.`),
       field('Override reason (required)', reason), h('button', { class: 'danger', onclick: run(() => mutate('POST', `/panels/${panel.id}/approve`, { override: true, override_reason: reason.value, reviewed_version: panel.version }, { label: `Approve “${panel.title}” (override)` })) }, 'Approve anyway (override)')),
     can('equipment.delete') && h('p', {}, h('button', { class: 'danger', onclick: async () => { if (confirm('Delete this panel?')) { try { await del(`/panels/${panel.id}`); navigate(`#/equipment/${panel.equipment_id}`); } catch (x) { toast(errMsg(x)); } } } }, 'Delete panel')));
 
@@ -131,6 +138,6 @@ export async function render(root, { arg }) {
   root.append(h('p', {}, h('a', { href: `#/equipment/${panel.equipment_id}` }, `← ${equipment.name}`)), h('h1', {}, panel.title),
     h('div', { class: 'row' }, statusBadge(panel.status)),
     panel.status !== 'approved' && h('div', { class: 'notice' }, panel.status === 'needs_review' ? 'This panel changed or is waiting for review.' : 'Draft panel: not approved yet.'),
-    panel.verify_count > 0 && h('div', { class: 'notice' }, `${panel.verify_count} pin(s) are marked VERIFY (not identified).`), stage, live, side);
+    panel.verify_count > 0 && h('div', { class: 'notice' }, `${plural(panel.verify_count, 'pin is', 'pins are')} marked VERIFY (not identified).`), stage, live, side);
   draw();
 }

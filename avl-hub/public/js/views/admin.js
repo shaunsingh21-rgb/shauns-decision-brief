@@ -1,4 +1,4 @@
-import { h, clear, field, select, fmtDate } from '../dom.js';
+import { h, clear, field, select, fmtDate, plural } from '../dom.js';
 import { get, post, patch, del } from '../api.js';
 import { toast, errMsg, state, can } from '../app.js';
 
@@ -11,17 +11,17 @@ const tempNotice = (who, pw) => h('div', { class: 'notice ok' }, h('strong', {},
 export async function render(root) {
   const redraw = () => { clear(root); return render(root); };
   const act = fn => async () => { try { await fn(); await redraw(); } catch (x) { toast(errMsg(x)); } };
-  const [usersRes, rolesRes, domainsRes, auditRes] = await Promise.all([
+  const [usersRes, rolesRes, domainsRes, auditRes, backupRes] = await Promise.all([
     can('users.manage') ? get('/users') : null, can('roles.manage', 'users.manage') ? get('/roles') : null,
-    can('sources.manage') ? get('/sources') : null, can('audit.view') ? get('/audit?limit=50') : null]);
+    can('sources.manage') ? get('/sources') : null, can('audit.view') ? get('/audit?limit=50') : null, can('data.manage') ? get('/admin/backup-status').catch(() => null) : null]);
   const secret = h('div', { role: 'status' });
   if (carry) { secret.append(tempNotice(carry.who, carry.pw)); carry = null; }
   root.append(h('h1', {}, 'Admin'), secret);
   if (usersRes) root.append(...peopleSection(usersRes.users, rolesRes.roles, secret, redraw, act));
   if (can('roles.manage') && rolesRes) root.append(...rolesSection(rolesRes, redraw));
   if (domainsRes) root.append(...sourcesSection(domainsRes.domains, act));
-  if (can('data.manage')) root.append(...dataSection());
-  if (auditRes) root.append(...auditSection(auditRes.entries));
+  if (can('data.manage')) root.append(...dataSection(backupRes));
+  if (auditRes) root.append(...auditSection(auditRes));
   if (root.children.length <= 2) root.append(h('p', { class: 'hint' }, 'Your role has no administration permissions.'));
 }
 
@@ -33,11 +33,13 @@ function peopleSection(users, roles, secret, redraw, act) {
     const r = select([...assignable.map(x => [x.id, x.name]), ...(assignable.some(x => x.id === u.role) ? [] : [[u.role, u.role_name]])], u.role);
     r.setAttribute('aria-label', `Role for ${u.username}`); r.disabled = !u.can_manage;
     r.addEventListener('change', act(() => patch(`/users/${u.id}`, { role: r.value })));
-    return h('tr', {}, h('td', {}, u.username), h('td', {}, u.display_name), h('td', {}, r),
-      h('td', {}, [u.disabled ? 'Disabled' : (u.must_change_password ? 'Must change password' : 'Active'), u.mfa_enabled ? ' · two-step on' : ''].join('')),
-      h('td', {}, u.can_manage ? h('div', { class: 'row' },
-        h('button', { onclick: async () => { try { showTemp(u.username, (await post(`/users/${u.id}/reset-password`)).temporary_password); } catch (x) { toast(errMsg(x)); } } }, 'Reset password'),
-        h('button', { onclick: act(() => post(`/users/${u.id}/unlock`)) }, 'Unlock'),
+    const status = [u.disabled ? 'Disabled' : (u.must_change_password ? 'Must change password' : 'Active'), u.mfa_enabled ? 'two-step on' : ''].filter(Boolean).join(' · ');
+    return h('tr', {}, h('td', { 'data-label': 'Username' }, u.username), h('td', { 'data-label': 'Name' }, u.display_name), h('td', { 'data-label': 'Role' }, r),
+      h('td', { 'data-label': 'Status' }, status, u.locked && h('div', { class: 'badge b-needs_review', role: 'status' }, `Locked out for about ${plural(u.locked_minutes, 'more minute')}`)),
+      h('td', { 'data-label': 'Last signed in' }, u.last_login_at ? fmtDate(u.last_login_at) : 'Never'),
+      h('td', { 'data-label': 'Actions' }, u.can_manage ? h('div', { class: 'row' },
+        h('button', { onclick: async () => { try { showTemp(u.username, (await post(`/users/${u.id}/reset-password`)).temporary_password); window.scrollTo(0, 0); } catch (x) { toast(errMsg(x)); } } }, 'Reset password'),
+        u.locked && h('button', { class: 'primary', onclick: act(() => post(`/users/${u.id}/unlock`)) }, 'Unlock now'),
         u.mfa_enabled && h('button', { 'aria-label': `Reset two-step sign-in for ${u.username}`, onclick: async () => { if (confirm(`Turn off two-step sign-in for ${u.username}? Do this only if they lost their phone and recovery codes. They can set it up again.`)) { try { await post(`/users/${u.id}/mfa-reset`); toast('Two-step sign-in reset.'); await redraw(); } catch (x) { toast(errMsg(x)); } } } }, 'Reset two-step'),
         u.id !== state.user.id && h('button', { class: u.disabled ? '' : 'danger', onclick: act(() => patch(`/users/${u.id}`, { disabled: !u.disabled })) }, u.disabled ? 'Enable' : 'Disable'))
         : h('span', { class: 'hint' }, 'Their role has more power than yours')));
@@ -45,7 +47,7 @@ function peopleSection(users, roles, secret, redraw, act) {
   const un = h('input', { autocapitalize: 'none', maxlength: 64 }), dn = h('input', { maxlength: 80 });
   const rl = select(assignable.map(x => [x.id, x.name]), (assignable.find(x => x.id === 'technician') || assignable[0] || {}).id);
   return [h('h2', {}, 'People'),
-    h('div', { class: 'scroll card' }, h('table', {}, h('thead', {}, h('tr', {}, ['Username', 'Name', 'Role', 'Status', 'Actions'].map(t => h('th', { scope: 'col' }, t)))), h('tbody', {}, rows))),
+    h('div', { class: 'scroll card' }, h('table', { class: 'cards' }, h('thead', {}, h('tr', {}, ['Username', 'Name', 'Role', 'Status', 'Last signed in', 'Actions'].map(t => h('th', { scope: 'col' }, t)))), h('tbody', {}, rows))),
     h('details', { class: 'card' }, h('summary', {}, 'Create an account'), field('Username', un), field('Display name', dn), field('Role', rl, 'You can only choose roles with no more power than your own.'),
       h('button', { class: 'primary', onclick: async () => { try { const r = await post('/users', { username: un.value, display_name: dn.value, role: rl.value }); carry = { who: r.user.username, pw: r.temporary_password }; await redraw(); window.scrollTo(0, 0); } catch (x) { toast(errMsg(x)); } } }, 'Create'))];
 }
@@ -72,7 +74,8 @@ function rolesSection({ roles, catalogue }, redraw) {
     const desc = h('textarea', { maxlength: 300, disabled: !!locked }, role ? role.description : '');
     const chosen = new Set(role ? role.permissions : []);
     const mfaOn = !!(state.user.features && state.user.features.mfa);
-    const mfa = h('input', { type: 'checkbox', checked: !!(role && role.require_mfa), disabled: !mfaOn });
+    const adminLike = state.user.permissions.length >= catalogue.length;                    // only someone holding every permission may change this policy
+    const mfa = h('input', { type: 'checkbox', checked: !!(role && role.require_mfa), disabled: !mfaOn || !adminLike });
     const groups = [...new Set(catalogue.map(c => c.group))];
     const boxes = groups.map(g => h('fieldset', {}, h('legend', {}, g), ...catalogue.filter(c => c.group === g).map(c => {
       const cannot = !mine.has(c.key) && !locked;
@@ -93,7 +96,7 @@ function rolesSection({ roles, catalogue }, redraw) {
       field('Name', name), field('What is this role for? (optional)', desc), h('h4', {}, 'Permissions'),
       h('p', { class: 'hint' }, 'Everyone signed in can read equipment, training and issues. These are the things a role can additionally do.'), ...boxes,
       h('label', { class: 'opt plain' }, mfa, h('span', {}, 'Require two-step sign-in for people in this role')),
-      !mfaOn && h('div', { class: 'hint' }, 'Two-step sign-in is not set up on this server (see the deployment guide: MFA_ENCRYPTION_KEY).'), err,
+      !mfaOn && h('div', { class: 'hint' }, 'Two-step sign-in is not set up on this server (see the deployment guide).'), mfaOn && !adminLike && h('div', { class: 'hint' }, 'Only a Leader/Admin can change whether a role requires two-step sign-in.'), err,
       h('div', { class: 'row' }, h('button', { class: 'primary', type: 'submit' }, 'Save role'), h('button', { type: 'button', onclick: show }, 'Cancel'))));
   }
   show();
@@ -110,14 +113,16 @@ function sourcesSection(domains, act) {
 }
 
 // ---------------------------------------------------------------- export / import (content only; never accounts, approvals or sign-offs)
-function dataSection() {
+function dataSection(backup) {
   const report = h('div', { role: 'status' }); const file = h('input', { type: 'file', accept: 'application/json,.json', 'aria-label': 'Choose an export file' });
   let parsed = null;
   const showReport = r => report.replaceChildren(h('div', { class: `notice ${r.dry_run ? '' : 'ok'}` }, h('strong', {}, r.dry_run ? 'Check only — nothing has been changed. ' : 'Imported. '),
     `Added: ${Object.entries(r.added).map(([k, v]) => `${v} ${k.replace('_', ' ')}`).join(', ') || 'nothing'}. Already present (skipped): ${Object.entries(r.skipped).map(([k, v]) => `${v} ${k.replace('_', ' ')}`).join(', ') || 'nothing'}.`,
     r.warnings.length ? h('ul', {}, r.warnings.map(w => h('li', {}, w))) : null, h('p', { class: 'hint' }, r.note)),
     r.dry_run && h('p', {}, h('button', { class: 'primary', onclick: async () => { try { showReport(await post('/admin/import', { data: parsed, dry_run: false })); } catch (x) { report.replaceChildren(h('div', { class: 'notice bad', role: 'alert' }, errMsg(x))); } } }, 'Import now')));
-  return [h('h2', {}, 'Export and import content'),
+  const bk = !backup ? null : backup.newest ? h('div', { class: `notice ${backup.healthy ? 'ok' : ''}`, role: 'status' }, backup.healthy ? `Last backup: about ${backup.age_hours < 1 ? 'less than an hour' : Math.round(backup.age_hours) + ' hours'} ago (${plural(backup.count, 'backup')} kept).` : `The newest backup is about ${Math.round(backup.age_hours)} hours old (${plural(backup.count, 'backup')} kept). Nightly backups may have stopped: check with the doctor command.`)
+    : h('div', { class: 'notice bad', role: 'status' }, 'No backups found. See the backup guide: make one now and schedule it nightly.');
+  return [h('h2', {}, 'Backups, export and import'), bk,
     h('div', { class: 'card' }, h('p', { class: 'hint' }, 'Content only: equipment, training material, issues, update records and the source list. Never accounts, passwords, approvals, sign-offs or photos. Import only adds what is missing, as Draft. This is not a backup; see the backup guide.'),
       h('div', { class: 'row' }, h('button', { onclick: async () => {
         try { const data = await get('/admin/export'); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })); a.download = `avl-hub-content-${new Date().toISOString().slice(0, 10)}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
@@ -129,7 +134,33 @@ function dataSection() {
 }
 
 // ---------------------------------------------------------------- audit
-function auditSection(entries) {
-  return [h('h2', {}, 'Recent activity (audit log)'), h('div', { class: 'scroll card' }, h('table', {}, h('thead', {}, h('tr', {}, ['When', 'Who', 'Action', 'Item'].map(t => h('th', { scope: 'col' }, t)))),
-    h('tbody', {}, entries.map(e => h('tr', {}, h('td', {}, fmtDate(e.ts)), h('td', {}, e.actor_name || '—'), h('td', {}, e.action), h('td', {}, e.entity ? `${e.entity} ${String(e.entity_id || '').slice(0, 8)}` : ''))))))];
+const LABELS = { 'auth.login': 'Signed in', 'auth.logout': 'Signed out', 'auth.login_failed': 'Failed sign-in', 'auth.lockout': 'Account locked after failed sign-ins', 'auth.login_blocked_locked': 'Sign-in refused (account locked)',
+  'auth.password_changed': 'Changed their password', 'auth.login_mfa_challenge': 'Password accepted, waiting for the two-step code', 'auth.mfa_failed': 'Wrong two-step code', 'auth.mfa_recovery_used': 'Signed in with a recovery code',
+  'user.create': 'Created an account', 'user.update': 'Changed an account', 'user.reset_password': 'Reset a password', 'user.unlock': 'Unlocked an account', 'user.reset_password_cli': 'Password reset on the server', 'user.create_first_admin': 'Created the first administrator',
+  'mfa.enabled': 'Turned on two-step sign-in', 'mfa.disabled': 'Turned off two-step sign-in', 'mfa.reset': 'Reset someone’s two-step sign-in', 'mfa.reset_cli': 'Two-step sign-in reset on the server', 'mfa.recovery_codes_replaced': 'Replaced recovery codes',
+  'role.create': 'Created a role', 'role.update': 'Changed a role', 'role.delete': 'Deleted a role', 'role.reset': 'Reset a role to its defaults', 'source.add': 'Added an official website', 'source.remove': 'Removed an official website',
+  'equipment.create': 'Added equipment', 'equipment.update': 'Edited equipment', 'equipment.submit_review': 'Sent equipment for review', 'equipment.approve': 'Approved equipment', 'equipment.approve_override': 'Approved equipment despite VERIFY items', 'equipment.delete': 'Deleted equipment', 'install_steps.replace': 'Changed installation steps',
+  'module.create': 'Created a training module', 'module.update': 'Edited a training module', 'module.submit_review': 'Sent a module for review', 'module.approve': 'Approved a training module', 'quiz.attempt': 'Took a quiz', 'quiz.add_question': 'Added a quiz question', 'quiz.remove_question': 'Removed a quiz question',
+  'skill.add': 'Added a practical skill', 'skill.remove': 'Removed a practical skill', 'practical.score': 'Scored a practical skill', 'signoff.create': 'Signed someone off', 'video.add': 'Added a lesson video', 'video.remove': 'Removed a lesson video', 'checkpoint.add': 'Added a video checkpoint', 'checkpoint.remove': 'Removed a video checkpoint',
+  'panel.create': 'Created a photo panel', 'panel.update': 'Renamed a photo panel', 'panel.submit_review': 'Sent a photo panel for review', 'panel.approve': 'Approved a photo panel', 'panel.approve_override': 'Approved a photo panel despite VERIFY pins', 'panel.delete': 'Deleted a photo panel', 'pin.add': 'Added a pin', 'pin.update': 'Changed a pin', 'pin.remove': 'Removed a pin',
+  'file.upload': 'Uploaded a file', 'file.delete': 'Deleted a file', 'issue.create': 'Logged an issue or lesson', 'issue.update': 'Changed an issue or lesson', 'update.record': 'Recorded an available update', 'update.status': 'Changed an update’s status',
+  'export.content': 'Exported content', 'import.content': 'Imported content', 'research.search': 'Searched the official websites', 'ai.draft': 'Asked the AI for a draft', 'sync.superseded': 'An older change was not applied (a newer one existed)' };
+const FACTS = { username: 'Username', role: 'Role', trainee: 'Trainee', module: 'Module', module_version: 'Module version', quiz_pct: 'Quiz score (%)', note: 'Note', score: 'Score', skill: 'Skill', renewal: 'Renewal of an earlier sign-off', name: 'Name',
+  before: 'Before', after: 'After', reason: 'Reason', verify_keys: 'Items still VERIFY', approved_version: 'Approved version', reviewed_version: 'Version reviewed', occurred_at: 'Done (on their device) at', permissions: 'Permissions', status_change: 'Status change', from: 'From', to: 'To', passed: 'Passed', score_pct: 'Score (%)' };
+const show = v => (Array.isArray(v) ? (v.length ? v.map(show).join(', ') : 'none') : v && typeof v === 'object' ? Object.entries(v).map(([k, x]) => `${k}: ${show(x)}`).join('; ') : v === true ? 'yes' : v === false ? 'no' : String(v));
+function auditRows(entries) {
+  return entries.map(e => {
+    let d = {}; try { d = JSON.parse(e.detail || '{}'); } catch { /* keep empty */ }
+    const facts = Object.entries(d).filter(([k, v]) => v != null && v !== '' && !(Array.isArray(v) && !v.length && k !== 'permissions')).map(([k, v]) => [FACTS[k] || k.replace(/_/g, ' '), show(v)]);
+    if (e.ip) facts.push(['From address', e.ip]);
+    return h('tr', {}, h('td', { 'data-label': 'When' }, fmtDate(e.ts)), h('td', { 'data-label': 'Who' }, e.actor_name || 'The system'),
+      h('td', { 'data-label': 'What' }, LABELS[e.action] || e.action.replace(/[._]/g, ' '), (e.target || d.username) ? ` — ${e.target || d.username}` : ''),       // failed sign-ins carry the typed username, not an id
+      h('td', { 'data-label': 'Details' }, facts.length ? h('details', { class: 'audit-detail' }, h('summary', {}, 'Show'), h('dl', { class: 'facts' }, facts.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)]))) : h('span', { class: 'hint' }, '—')));
+  });
+}
+function auditSection({ entries, has_more }) {
+  const body = h('tbody', {}, auditRows(entries)); let last = entries.length ? entries[entries.length - 1].id : null; const more = h('p', {});
+  const button = () => has_more && h('button', { onclick: async e => { try { const r = await get(`/audit?limit=50&before=${last}`); body.append(...auditRows(r.entries)); if (r.entries.length) last = r.entries[r.entries.length - 1].id; if (!r.has_more) e.target.remove(); } catch (x) { toast(errMsg(x)); } } }, 'Show older activity');
+  more.append(button() || '');
+  return [h('h2', {}, 'Recent activity (audit log)'), h('div', { class: 'scroll card' }, h('table', { class: 'cards' }, h('thead', {}, h('tr', {}, ['When', 'Who', 'What', 'Details'].map(t => h('th', { scope: 'col' }, t)))), body), more)];
 }

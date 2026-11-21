@@ -125,10 +125,13 @@ module.exports = function equipmentRoutes(api, ctx) {
   });
 
   api.delete('/equipment/:id', P('equipment.delete'), async (req, res) => {
-    const eid = parse(id, req.params.id); live(eid);
+    const eid = parse(id, req.params.id), cur = live(eid);
     db.transaction(() => {
       db.prepare('UPDATE equipment SET deleted_at=?, updated_by=?, updated_at=? WHERE id=?').run(now(), req.user.id, now(), eid);
-      audit(req, 'equipment.delete', 'equipment', eid);
+      // Its photo panels go with it (their files become deletable); training modules just stop pointing at it. Update records are hidden by the list query.
+      const gone = db.prepare('UPDATE photo_panels SET deleted_at=?, updated_by=?, updated_at=? WHERE equipment_id=? AND deleted_at IS NULL').run(now(), req.user.id, now(), eid).changes;
+      const unlinked = db.prepare('UPDATE training_modules SET equipment_id=NULL WHERE equipment_id=?').run(eid).changes;
+      audit(req, 'equipment.delete', 'equipment', eid, { name: cur.name, panels_removed: gone, modules_unlinked: unlinked });
     })();
     res.json({ ok: true });
   });

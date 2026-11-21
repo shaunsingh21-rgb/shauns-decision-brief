@@ -31,11 +31,12 @@ module.exports = function authRoutes(api, ctx) {
       db.prepare('UPDATE users SET last_login_at = ? WHERE id = ?').run(new Date().toISOString(), user.id);
       audit(req, 'auth.login', 'user', user.id, detail, user);
     })();
+    auth.provider.succeed(user.username, req.ip);                     // sign-in is complete: only now forget this address's failures
     res.cookie(config.cookieName, raw, cookieOptions(config));
     res.json({ user: me(withRoleName(user)) });
   }
   const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, limit: config.loginIpMax, standardHeaders: true, legacyHeaders: false,
+    windowMs: 15 * 60 * 1000, limit: config.loginIpMax, standardHeaders: true, legacyHeaders: false, skipSuccessfulRequests: true,   // only failed attempts use up the allowance (a whole office signing in at 9am must not lock itself out)
     handler: (_req, res) => res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many sign-in attempts from this device. Try again later.' } }),
   });
 
@@ -72,11 +73,11 @@ module.exports = function authRoutes(api, ctx) {
     if (!ch || Date.parse(ch.expires_at) < Date.now()) throw new HttpError(401, 'CHALLENGE_EXPIRED', 'Sign in again: this step took too long.');
     const user = db.prepare('SELECT * FROM users WHERE id=? AND disabled=0').get(ch.user_id);
     if (!user) throw new HttpError(401, 'CHALLENGE_EXPIRED', 'Sign in again.');
-    const lock = auth.provider.lockStatus(user.username);
+    const lock = auth.provider.lockStatus(user.username, req.ip);
     if (lock.locked) throw new HttpError(429, 'ACCOUNT_LOCKED', `Too many failed attempts. Try again in ${lock.minutes} minute(s), or ask an administrator to unlock the account.`);
     const result = ctx.mfa.checkCode(user.id, b.code);
     if (!result.ok) {
-      const { locked } = auth.provider.noteFailure(user.username);          // shares the sign-in lockout
+      const { locked } = auth.provider.noteFailure(user.username, req.ip);   // shares the sign-in lockout
       const attempts = ch.attempts + 1;
       db.transaction(() => {
         if (attempts >= 5 || locked) db.prepare('DELETE FROM mfa_challenges WHERE id_hash=?').run(ch.id_hash); else db.prepare('UPDATE mfa_challenges SET attempts=? WHERE id_hash=?').run(attempts, ch.id_hash);
@@ -84,7 +85,7 @@ module.exports = function authRoutes(api, ctx) {
       })();
       throw attempts >= 5 || locked ? new HttpError(401, 'CHALLENGE_EXPIRED', 'Too many wrong codes. Sign in again.') : bad;
     }
-    db.prepare('DELETE FROM mfa_challenges WHERE id_hash=?').run(ch.id_hash); auth.provider.clearFailures(user.username);
+    db.prepare('DELETE FROM mfa_challenges WHERE id_hash=?').run(ch.id_hash);
     if (result.via === 'recovery') db.transaction(() => audit(req, 'auth.mfa_recovery_used', 'user', user.id, { remaining: ctx.mfa.recoveryLeft(user.id) }, user))();
     startSession(req, res, user, { mfa: result.via });
   });

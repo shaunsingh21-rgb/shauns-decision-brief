@@ -29,7 +29,7 @@ function askHidden(q) {
   db.transaction(() => {
     db.prepare('UPDATE users SET password_hash=?, must_change_password=1, disabled=0, updated_at=? WHERE id=?').run(hash, now, user.id);
     db.prepare('DELETE FROM sessions WHERE user_id=?').run(user.id);
-    db.prepare('DELETE FROM login_failures WHERE key=?').run(user.username.toLowerCase());
+    { const k = user.username.toLowerCase(), pre = `ip:${k}|`; db.prepare('DELETE FROM login_failures WHERE key=? OR substr(key,1,?)=?').run(`all:${k}`, pre.length, pre); }
     db.prepare('INSERT INTO audit_log (ts,actor_id,actor_name,action,entity,entity_id,detail) VALUES (?,?,?,?,?,?,?)')
       .run(now, null, 'cli', 'user.reset_password_cli', 'user', user.id, JSON.stringify({ username: user.username, was_disabled: !!user.disabled }));
   })();

@@ -66,6 +66,7 @@ module.exports = function panelRoutes(api, ctx) {
   api.patch('/pins/:id', P('equipment.edit'), async (req, res) => {
     const cur = db.prepare('SELECT * FROM panel_pins WHERE id=?').get(parse(id, req.params.id));
     if (!cur) throw new HttpError(404, 'NOT_FOUND', 'Pin not found.');
+    panel(cur.panel_id);                                           // 404 here if the panel was deleted, before anything is changed
     const b = parse(pin, req.body); checkPin(b);
     const at = editTime(req);
     if (superseded(cur.edit_at, at)) {
@@ -81,6 +82,7 @@ module.exports = function panelRoutes(api, ctx) {
   api.delete('/pins/:id', P('equipment.edit'), async (req, res) => {
     const cur = db.prepare('SELECT * FROM panel_pins WHERE id=?').get(parse(id, req.params.id));
     if (!cur) throw new HttpError(404, 'NOT_FOUND', 'Pin not found.');
+    panel(cur.panel_id);                                           // 404 here if the panel was deleted, before anything is changed
     db.transaction(() => { db.prepare('DELETE FROM panel_pins WHERE id=?').run(cur.id); touch(req, cur.panel_id); audit(req, 'pin.remove', 'panel', cur.panel_id, { pin_id: cur.id }); })();
     res.json({ panel: full(cur.panel_id) });
   });

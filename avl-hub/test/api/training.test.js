@@ -74,7 +74,7 @@ test('sign-offs and audit entries are append-only at the database level', () => 
   assert.throws(() => h.db.prepare('DELETE FROM signoffs').run(), /append-only/);
   assert.throws(() => h.db.prepare('DELETE FROM audit_log').run(), /append-only/);
   assert.throws(() => h.db.prepare('UPDATE audit_log SET action=1').run(), /append-only/);
-  assert.throws(() => h.db.prepare('INSERT INTO signoffs VALUES (?,?,?,?,?,?,?)').run('x', admin.id, mod.id, admin.id, 90, null, 'now'), /constraint|CHECK/i);
+  assert.throws(() => h.db.prepare('INSERT INTO signoffs (id,trainee_id,module_id,signed_by,quiz_pct,note,created_at) VALUES (?,?,?,?,?,?,?)').run('x', admin.id, mod.id, admin.id, 90, null, 'now'), /constraint|CHECK/i);
 });
 
 test('editing approved training material returns it to Needs Review', async () => {

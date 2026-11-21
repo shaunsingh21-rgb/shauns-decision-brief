@@ -5,7 +5,7 @@ const { isKey } = require('./lib/permissions');
 
 // Every route MUST declare access: 'public' | 'any' (any signed-in user) | P('permission', ...) (holds ANY of those permissions).
 // The registry is exported so tests can prove every mutating endpoint is permission-checked.
-module.exports = function makeApi() {
+module.exports = function makeApi(opts = {}) {
   const router = express.Router();
   const registry = [];
   const wrap = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -18,6 +18,7 @@ module.exports = function makeApi() {
       const mw = [];
       if (access !== 'public') mw.push(requireAuth);
       if (access && access.permissions) mw.push(requirePermission(access.permissions));
+      if (opts.idem && access !== 'public' && method !== 'get') mw.push(opts.idem);          // replay only for someone who is still allowed to do this
       router[method](path, ...mw, ...handlers.map(wrap));
     };
   }

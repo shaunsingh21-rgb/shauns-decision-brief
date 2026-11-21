@@ -2,61 +2,78 @@
 const argon2 = require('argon2');
 const { HttpError } = require('../lib/errors');
 
+// Sign-in lockout, designed so that guessing is slow but a stranger cannot lock people out:
+//  * every attempt is COUNTED BEFORE the slow password check, so a burst of parallel guesses cannot all slip through;
+//  * the count is kept per username AND address ("ip:" keys, limit LOCKOUT_MAX_FAILURES). Someone elsewhere cannot lock you out of your own account;
+//  * a higher per-username ceiling ("all:" key, LOCKOUT_GLOBAL_FAILURES) still stops a guesser who uses many addresses;
+//  * the counter is only cleared when sign-in is COMPLETE (after the second step, if there is one), so authenticator codes cannot be guessed
+//    by interleaving them with correct passwords.
 module.exports = function localProvider({ db, config }) {
   const opts = { type: argon2.argon2id, ...(config.argon || {}) };
   let dummy;
   const dummyHash = () => (dummy ||= argon2.hash('timing-equaliser-not-a-password', opts));
-  const now = () => new Date();
+  const nowIso = () => new Date().toISOString();
+  const norm = u => String(u).toLowerCase();
+  const keys = (username, ip) => [{ key: `ip:${norm(username)}|${ip || ''}`, max: config.lockoutMaxFailures }, { key: `all:${norm(username)}`, max: config.lockoutGlobalFailures }];
+  const minsLeft = row => Math.max(1, Math.ceil((Date.parse(row.locked_until) - Date.now()) / 60000));
 
-  function lockState(key) {
-    const row = db.prepare('SELECT * FROM login_failures WHERE key = ?').get(key);
-    if (!row) return null;
-    if (row.locked_until && Date.parse(row.locked_until) > Date.now()) return row;
-    if (row.locked_until) db.prepare('DELETE FROM login_failures WHERE key = ?').run(key); // lock expired: fresh start
-    return row.locked_until ? null : row;
+  // A lock that has expired is removed, so the next try starts fresh.
+  function live(key) {
+    const row = db.prepare('SELECT * FROM login_failures WHERE key=?').get(key);
+    if (row && row.locked_until && Date.parse(row.locked_until) <= Date.now()) { db.prepare('DELETE FROM login_failures WHERE key=?').run(key); return null; }
+    return row || null;
   }
-  function recordFailure(key) {
-    const row = db.prepare('SELECT count FROM login_failures WHERE key = ?').get(key);
-    const count = (row ? row.count : 0) + 1;
-    const lockedUntil = count >= config.lockoutMaxFailures ? new Date(Date.now() + config.lockoutMinutes * 60000).toISOString() : null;
-    db.prepare(`INSERT INTO login_failures (key,count,locked_until,updated_at) VALUES (?,?,?,?)
-                ON CONFLICT(key) DO UPDATE SET count=excluded.count, locked_until=excluded.locked_until, updated_at=excluded.updated_at`)
-      .run(key, count, lockedUntil, now().toISOString());
-    return { locked: !!lockedUntil };
-  }
+  const lockedRow = (username, ip) => { for (const k of keys(username, ip)) { const r = live(k.key); if (r && r.locked_until) return r; } return null; };
+  const save = (key, count, lockedUntil) => db.prepare(`INSERT INTO login_failures (key,count,locked_until,updated_at) VALUES (?,?,?,?)
+      ON CONFLICT(key) DO UPDATE SET count=excluded.count, locked_until=excluded.locked_until, updated_at=excluded.updated_at`).run(key, count, lockedUntil, nowIso());
+  const until = () => new Date(Date.now() + config.lockoutMinutes * 60000).toISOString();
+  // Count an attempt BEFORE checking the password (synchronous, so atomic between requests). Over the limit => locked, refused unchecked.
+  function reserve(key, max) { const row = live(key), count = (row ? row.count : 0) + 1; if (count > max) { save(key, count, until()); return { over: true }; } save(key, count, row ? row.locked_until : null); return { over: false }; }
+  // After a failed check: the limit-th failure locks.
+  function lockIfAtMax(key, max) { const row = live(key); if (row && row.count >= max) { if (!row.locked_until) save(key, row.count, until()); return true; } return !!(row && row.locked_until); }
+  // A failure with no prior reservation (wrong authenticator code): count it and lock at the limit.
+  function failNow(key, max) { const row = live(key), count = (row ? row.count : 0) + 1; const locked = count >= max; save(key, count, locked ? until() : (row ? row.locked_until : null)); return locked; }
+  const lockError = row => new HttpError(429, 'ACCOUNT_LOCKED',
+    `Too many failed sign-in attempts. Try again in ${minsLeft(row)} minute(s), or ask an administrator to unlock the account.`, { retry_after_minutes: minsLeft(row) });
 
   return {
     name: 'local',
     hashPassword: pw => argon2.hash(pw, opts),
     verifyPassword: (hash, pw) => argon2.verify(hash, pw),
-    clearFailures: key => db.prepare('DELETE FROM login_failures WHERE key = ?').run(key.toLowerCase()),
-    // The second step (authenticator code) shares the sign-in lockout, so six-digit codes cannot be guessed.
-    lockStatus(username) { const st = lockState(String(username).toLowerCase()); if (st && st.locked_until) return { locked: true, minutes: Math.max(1, Math.ceil((Date.parse(st.locked_until) - Date.now()) / 60000)) }; return { locked: false }; },
-    noteFailure: username => recordFailure(String(username).toLowerCase()),
+
+    // Sign-in finished successfully: forget this address's failures, and undo only THIS attempt's share of the per-username count.
+    succeed(username, ip) {
+      const [perIp, all] = keys(username, ip);
+      db.transaction(() => {
+        db.prepare('DELETE FROM login_failures WHERE key=?').run(perIp.key);
+        const row = db.prepare('SELECT count FROM login_failures WHERE key=?').get(all.key);
+        if (row) { if (row.count <= 1) db.prepare('DELETE FROM login_failures WHERE key=?').run(all.key); else db.prepare('UPDATE login_failures SET count=count-1 WHERE key=?').run(all.key); }
+      })();
+    },
+    // Admin unlock / password reset: clears every key for that username (all addresses).
+    clearAll(username) {
+      const prefix = `ip:${norm(username)}|`;
+      db.prepare('DELETE FROM login_failures WHERE key=? OR substr(key,1,?)=?').run(`all:${norm(username)}`, prefix.length, prefix);
+    },
+    // The second step (authenticator code) shares this lockout, so six-digit codes cannot be guessed.
+    lockStatus(username, ip) { const r = lockedRow(username, ip); return r ? { locked: true, minutes: minsLeft(r) } : { locked: false }; },
+    noteFailure(username, ip) { let locked = false; for (const k of keys(username, ip)) locked = failNow(k.key, k.max) || locked; return { locked }; },
 
     // Contract: resolve to a users row, or throw HttpError. Never reveals whether the username exists.
-    async authenticate(_req, { username, password }) {
-      const key = String(username).toLowerCase();
-      const st = lockState(key);
-      if (st && st.locked_until) {
-        const mins = Math.max(1, Math.ceil((Date.parse(st.locked_until) - Date.now()) / 60000));
-        throw new HttpError(429, 'ACCOUNT_LOCKED',
-          `Too many failed sign-in attempts. Try again in ${mins} minute(s), or ask an administrator to unlock the account.`,
-          { retry_after_minutes: mins });
-      }
+    async authenticate(req, { username, password }) {
+      const ip = req && req.ip;
+      const lock = lockedRow(username, ip);
+      if (lock) throw lockError(lock);
+      // Count this attempt NOW (before the slow hash). Over the limit: refuse without even checking the password.
+      if (keys(username, ip).map(k => reserve(k.key, k.max)).some(r => r.over)) throw lockError(lockedRow(username, ip));
       const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
       let ok = false;
-      if (user && user.auth_provider === 'local' && user.password_hash && !user.disabled) {
-        ok = await argon2.verify(user.password_hash, password);
-      } else {
-        await argon2.verify(await dummyHash(), password); // keep timing similar for unknown users
-      }
-      if (!ok) {
-        const { locked } = recordFailure(key);
-        throw new HttpError(401, 'INVALID_CREDENTIALS', 'Invalid username or password.', { locked });
-      }
-      db.prepare('DELETE FROM login_failures WHERE key = ?').run(key);
-      return user;
+      if (user && user.auth_provider === 'local' && user.password_hash && !user.disabled) ok = await argon2.verify(user.password_hash, password);
+      else await argon2.verify(await dummyHash(), password);                       // keep timing similar for unknown users
+      if (!ok) { const locked = keys(username, ip).map(k => lockIfAtMax(k.key, k.max)).some(Boolean); throw new HttpError(401, 'INVALID_CREDENTIALS', 'Invalid username or password.', { locked }); }
+      // A correct password during a burst that has since locked the account is still refused.
+      const after = lockedRow(username, ip); if (after) throw lockError(after);
+      return user;                                                                 // NOTE: failures are cleared by succeed(), once sign-in is fully complete
     },
   };
 };

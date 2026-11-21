@@ -23,17 +23,21 @@ function inspectDb(file) {
       admins: db.prepare("SELECT COUNT(*) n FROM users WHERE role='admin' AND disabled=0").get().n, users: db.prepare('SELECT COUNT(*) n FROM users').get().n };
   } finally { db.close(); }
 }
+function lockTree(dir) {
+  fs.chmodSync(dir, 0o700);
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) { const p = path.join(dir, e.name); if (e.isDirectory()) lockTree(p); else fs.chmodSync(p, 0o600); }
+}
 const countFiles = dir => { let n = 0, bytes = 0; if (fs.existsSync(dir)) for (const e of fs.readdirSync(dir, { withFileTypes: true })) if (e.isFile()) { n++; bytes += fs.statSync(path.join(dir, e.name)).size; } return { n, bytes }; };
 
 async function createBackup({ dbPath, uploadDir, backupDir, keep = 14, now = new Date() }) {
   if (!fs.existsSync(dbPath)) throw new Error(`Database not found at ${dbPath}`);
-  fs.mkdirSync(backupDir, { recursive: true });
+  fs.mkdirSync(backupDir, { recursive: true, mode: 0o700 });
   // Folder names are timestamps. If one is taken (two backups in the same second), use the next free second rather than failing.
   let final = path.join(backupDir, PREFIX + stamp(now));
   for (let i = 0; fs.existsSync(final) && i < 120; i++) { now = new Date(now.getTime() + 1000); final = path.join(backupDir, PREFIX + stamp(now)); }
   if (fs.existsSync(final)) throw new Error('Could not choose a name for the backup folder.');
   const partial = final + '.partial';
-  fs.rmSync(partial, { recursive: true, force: true }); fs.mkdirSync(partial);
+  fs.rmSync(partial, { recursive: true, force: true }); fs.mkdirSync(partial, { mode: 0o700 });
   try {
     const src = new Database(dbPath, { fileMustExist: true });
     try { await src.backup(path.join(partial, 'avl-hub.db')); } finally { src.close(); }
@@ -45,6 +49,7 @@ async function createBackup({ dbPath, uploadDir, backupDir, keep = 14, now = new
     const manifest = { format: 'avl-hub-backup', version: 1, created_at: now.toISOString(), db_sha256: sha256(path.join(partial, 'avl-hub.db')), db_bytes: fs.statSync(path.join(partial, 'avl-hub.db')).size,
       file_count: fc.n, files_bytes: fc.bytes, migrations: info.migrations, active_admins: info.admins, users: info.users };
     fs.writeFileSync(path.join(partial, 'manifest.json'), JSON.stringify(manifest, null, 2));
+    lockTree(partial);                                              // backups hold password hashes: readable by their owner only
     fs.renameSync(partial, final);                                 // only a complete backup ever gets the real name
     return { dir: final, manifest, pruned: prune(backupDir, keep) };
   } catch (e) { fs.rmSync(partial, { recursive: true, force: true }); throw e; }
@@ -86,7 +91,10 @@ function verifyBackup(dir) {
 function restoreBackup({ backupPath, dbPath, uploadDir, now = new Date() }) {
   const v = verifyBackup(backupPath);
   if (!v.ok) { const e = new Error(v.problems.join(' ')); e.problems = v.problems; throw e; }
-  if (fs.existsSync(dbPath)) {                                      // refuse if the app still has the database open
+  // The running app writes a heartbeat file every few seconds. If it is fresh, the app is live (even in another container): refuse.
+  const beat = path.join(path.dirname(dbPath), '.avl-running');
+  if (fs.existsSync(beat) && Date.now() - fs.statSync(beat).mtimeMs < 20000) throw new Error('The app appears to be running (it reported in a few seconds ago). Stop it first, wait a few seconds, then run the restore again.');
+  if (fs.existsSync(dbPath)) {                                      // second check: refuse if something holds a write lock
     const probe = new Database(dbPath, { fileMustExist: true, timeout: 1500 });
     try { probe.exec('BEGIN EXCLUSIVE'); probe.exec('ROLLBACK'); } catch { throw new Error('The database is in use. Stop the app first, then run the restore again.'); } finally { probe.close(); }
   }
@@ -108,4 +116,5 @@ function restoreBackup({ backupPath, dbPath, uploadDir, now = new Date() }) {
     throw e;
   }
 }
-module.exports = { createBackup, verifyBackup, restoreBackup, listBackups, prune, inspectDb, NAME_RE };
+const backupAgeHours = name => { const t = name.slice(PREFIX.length); return (Date.now() - Date.UTC(+t.slice(0, 4), +t.slice(4, 6) - 1, +t.slice(6, 8), +t.slice(9, 11), +t.slice(11, 13), +t.slice(13, 15))) / 36e5; };
+module.exports = { backupAgeHours, createBackup, verifyBackup, restoreBackup, listBackups, prune, inspectDb, NAME_RE };

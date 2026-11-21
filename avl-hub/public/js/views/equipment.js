@@ -1,4 +1,5 @@
-import { h, clear, field, select, provBadge, statusBadge, PROV, fmtDate } from '../dom.js';
+import { h, clear, field, select, provBadge, statusBadge, PROV, fmtDate, plural } from '../dom.js';
+const nice = k => k.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
 import { get, post, put, del, upload, mutate } from '../api.js';
 import { cleanPhoto, photoPicker } from '../media.js';
 import { can, toast, errMsg, navigate, noteQueued } from '../app.js';
@@ -37,7 +38,7 @@ async function detail(root, id) {
   const head = h('div', {}, h('p', {}, h('a', { href: '#/equipment' }, '← All equipment')), h('h1', {}, e.name),
     h('div', { class: 'row' }, statusBadge(e.status), h('span', { class: 'hint' }, [e.manufacturer, e.category].filter(Boolean).join(' · '))),
     e.status === 'needs_review' && h('div', { class: 'notice' }, 'This record changed since it was approved, or is waiting for review. It must be approved again.'),
-    e.verify_keys.length > 0 && h('div', { class: 'notice' }, `${e.verify_keys.length} item(s) are marked VERIFY: ${e.verify_keys.join(', ')}. Do not rely on them until confirmed from a source.`));
+    e.verify_keys.length > 0 && h('div', { class: 'notice' }, `${plural(e.verify_keys.length, 'item is', 'items are')} marked VERIFY (not confirmed): ${e.verify_keys.map(nice).join(', ')}. Do not rely on ${e.verify_keys.length === 1 ? 'it' : 'them'} until confirmed from a source.`));
 
   const specs = h('div', { class: 'card' }, h('h2', {}, 'Specifications'),
     e.fields.length ? h('div', { class: 'scroll' }, h('table', {}, h('thead', {}, h('tr', {}, ['Item', 'Value', 'Source'].map(t => h('th', { scope: 'col' }, t)))),
@@ -56,9 +57,9 @@ async function detail(root, id) {
 
   const mine = updates.filter(u => u.equipment_id === id), theirs = issues.filter(i => i.equipment_id === id);
   const related = h('div', { class: 'card' }, h('h2', {}, 'Related'),
-    h('p', {}, `${mine.length} update record(s) · ${theirs.length} issue/lesson(s). `, h('a', { href: '#/updates' }, 'Updates'), ' · ', h('a', { href: '#/issues' }, 'Issues & lessons')));
+    h('p', {}, `${plural(mine.length, 'update record')} · ${plural(theirs.length, 'issue or lesson')}. `, h('a', { href: '#/updates' }, 'Updates'), ' · ', h('a', { href: '#/issues' }, 'Issues & lessons')));
 
-  root.append(head, specs, approve, panelsCard(id, panels, reload), docsCard(id, docs, reload), installAssistant(id, steps, done, e), related, log,
+  root.append(head, specs, approve, installAssistant(id, steps, done, e), panelsCard(id, panels, reload), docsCard(id, docs, reload), related, log,
     can('equipment.delete') && h('p', {}, h('button', { class: 'danger', onclick: async () => { if (confirm('Delete this equipment record?')) { try { await del(`/equipment/${id}`); navigate('#/equipment'); } catch (x) { toast(errMsg(x)); } } } }, 'Delete')));
 }
 
@@ -70,7 +71,7 @@ function approvalPanel(e, id, reload) {
   };
   if (!e.verify_keys.length) return h('div', { class: 'card' }, h('button', { class: 'primary', onclick: () => run(false) }, 'Approve'));
   return h('div', { class: 'card' }, h('h2', {}, 'Approve'),
-    h('div', { class: 'notice' }, `Still VERIFY: ${e.verify_keys.join(', ')}. Resolve these first, or approve with an explicit override.`),
+    h('div', { class: 'notice' }, `Still VERIFY: ${e.verify_keys.map(nice).join(', ')}. Resolve these first, or approve with an explicit override.`),
     field('Override reason (required, at least 5 characters)', reason),
     h('p', {}, h('button', { class: 'danger', onclick: () => run(true) }, 'Approve anyway (override)')));
 }
@@ -154,12 +155,13 @@ function panelsCard(id, panels, reload) {
     try { const file = await upload(await cleanPhoto(f), { purpose: 'photo', equipment_id: id }); const { panel } = await post('/panels', { equipment_id: id, title: title.value, file_id: file.id }); location.hash = `#/panels/${panel.id}`; }
     catch (x) { toast(errMsg(x)); }
   }, { primary: true }), h('p', { class: 'hint' }, 'Photos are tidied on your device first (location data in the photo is removed).'));
-  return h('div', { class: 'card' }, h('h2', {}, 'Photo panels'), panels.length ? h('ul', {}, panels.map(p => h('li', {}, h('a', { href: `#/panels/${p.id}` }, p.title), ` — ${p.pins} pin(s) `, statusBadge(p.status)))) : h('p', { class: 'hint' }, 'No photo panels yet. A panel is a photo with labelled, sourced pins.'), add);
+  return h('div', { class: 'card' }, h('h2', {}, 'Photo panels'), panels.length ? h('ul', {}, panels.map(p => h('li', {}, h('a', { href: `#/panels/${p.id}` }, p.title), ` — ${plural(p.pins, 'pin')} `, statusBadge(p.status)))) : h('p', { class: 'hint' }, 'No photo panels yet. A panel is a photo with labelled, sourced pins.'), add);
 }
 
 function docsCard(id, docs, reload) {
-  const pick = h('input', { type: 'file', accept: 'application/pdf', 'aria-label': 'Choose a PDF' });
+  const chosen = h('span', { class: 'hint' }, 'No file chosen');
+  const pick = h('input', { type: 'file', accept: 'application/pdf', class: 'vh', onchange: e => { chosen.textContent = e.target.files[0] ? e.target.files[0].name : 'No file chosen'; } });
   return h('div', { class: 'card' }, h('h2', {}, 'Documents'), docs.length ? h('ul', {}, docs.map(d => h('li', {}, h('a', { href: `/api/files/${d.id}` }, d.name), ` (${Math.max(1, Math.round(d.size / 1024))} KB)`,
     can('files.delete') && [' ', h('button', { class: 'danger', 'aria-label': `Delete ${d.name}`, onclick: async () => { if (confirm(`Delete ${d.name}?`)) { try { await del(`/files/${d.id}`); await reload(); } catch (x) { toast(errMsg(x)); } } } }, 'Delete')]))) : h('p', { class: 'hint' }, 'No documents yet (PDF only).'),
-    can(...EDIT) && h('div', { class: 'row' }, pick, h('button', { onclick: async () => { const f = pick.files[0]; if (!f) return toast('Choose a PDF first.'); try { await upload(f, { purpose: 'document', equipment_id: id }); toast('Uploaded.'); await reload(); } catch (x) { toast(errMsg(x)); } } }, 'Upload PDF')));
+    can(...EDIT) && h('div', { class: 'row' }, h('label', { class: 'btn nolabel' }, 'Choose a PDF', pick), chosen, h('button', { onclick: async () => { const f = pick.files[0]; if (!f) return toast('Choose a PDF first.'); try { await upload(f, { purpose: 'document', equipment_id: id }); toast('Uploaded.'); await reload(); } catch (x) { toast(errMsg(x)); } } }, 'Upload PDF')));
 }

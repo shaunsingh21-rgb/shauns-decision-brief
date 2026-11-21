@@ -130,7 +130,7 @@ test('every screen renders for an admin; installation assistant progress persist
   for (const [hash, heading] of [['#/equipment', 'Equipment library'], ['#/training', 'Training'], ['#/updates', 'Update management'], ['#/issues', 'Issues & lessons learned'], ['#/matrix', 'Skill matrix'], ['#/admin', 'Admin']]) {
     await page.evaluate(x => { location.hash = x; }, hash);
     await page.getByRole('heading', { name: heading, exact: true }).waitFor();
-    assert.equal(await page.locator('.notice.bad').count(), 0, hash);
+    assert.equal(await page.locator('.notice.bad[role=alert]').count(), 0, hash);                 // errors (not warnings such as "no backups yet")
     const text = await page.locator('#app').innerText();
     assert.ok(!/(^|\s)(false|true|undefined|null|NaN)(\s|$)|\[object /.test(text), `stray programming values shown on ${hash}: ${(text.match(/.{0,20}(\bfalse\b|\[object|undefined|\bNaN\b).{0,20}/) || [''])[0]}`);
   }

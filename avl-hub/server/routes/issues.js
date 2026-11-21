@@ -11,7 +11,7 @@ module.exports = function issueRoutes(api, ctx) {
   const now = () => new Date().toISOString();
   const eqOk = eid => { if (eid && !db.prepare('SELECT 1 FROM equipment WHERE id=? AND deleted_at IS NULL').get(eid)) throw new HttpError(400, 'BAD_EQUIPMENT', 'Unknown equipment.'); };
 
-  api.get('/issues', 'any', async (_req, res) => res.json({ issues: db.prepare('SELECT * FROM issues ORDER BY updated_at DESC').all() }));
+  api.get('/issues', 'any', async (_req, res) => res.json({ issues: db.prepare('SELECT * FROM issues ORDER BY updated_at DESC LIMIT 1000').all() }));
   api.post('/issues', P('issues.write'), async (req, res) => {
     const b = parse(z.object({ id: id.optional(), kind: z.enum(['issue', 'lesson']), title: text(160, 1), body: text(4000).optional(), equipment_id: id.optional() }).strict(), req.body);
     eqOk(b.equipment_id);
@@ -44,7 +44,7 @@ module.exports = function issueRoutes(api, ctx) {
   });
 
   // ---- update management: record + track only. Nothing here ever installs anything. ----
-  api.get('/updates', 'any', async (_req, res) => res.json({ updates: db.prepare('SELECT * FROM equipment_updates ORDER BY created_at DESC').all() }));
+  api.get('/updates', 'any', async (_req, res) => res.json({ updates: db.prepare('SELECT u.* FROM equipment_updates u JOIN equipment e ON e.id=u.equipment_id AND e.deleted_at IS NULL ORDER BY u.created_at DESC LIMIT 1000').all() }));
   api.post('/updates', P('updates.record'), async (req, res) => {
     const b = parse(z.object({ id: id.optional(), equipment_id: id, kind: z.enum(['firmware', 'software', 'other']), available_version: text(60, 1), notes: text(2000).optional(), source_url: url.optional() }).strict(), req.body);
     eqOk(b.equipment_id);

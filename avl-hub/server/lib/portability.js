@@ -7,7 +7,7 @@ const { HttpError } = require('./errors');
 
 const FORMAT = 'avl-hub-content', VERSION = 1;
 
-function buildExport(db) {
+function buildExport(db, { includeAnswers = true } = {}) {
   const all = (sql, ...a) => db.prepare(sql).all(...a);
   const equipment = all('SELECT id,name,manufacturer,category FROM equipment WHERE deleted_at IS NULL ORDER BY name').map(e => ({
     ...e,
@@ -17,14 +17,15 @@ function buildExport(db) {
   const liveEq = new Set(equipment.map(e => e.id));
   const modules = all('SELECT id,title,level,summary,equipment_id FROM training_modules ORDER BY level,title').map(m => ({
     ...m, equipment_id: liveEq.has(m.equipment_id) ? m.equipment_id : null,
-    questions: all('SELECT id,prompt,options,correct_index FROM quiz_questions WHERE module_id=? ORDER BY rowid', m.id).map(q => ({ ...q, options: JSON.parse(q.options) })),
+    // Quiz answers are only in the export for people who may see them anyway (training.author); learners must never be able to get them this way.
+    questions: includeAnswers ? all('SELECT id,prompt,options,correct_index FROM quiz_questions WHERE module_id=? ORDER BY rowid', m.id).map(q => ({ ...q, options: JSON.parse(q.options) })) : [],
     skills: all('SELECT id,name FROM practical_skills WHERE module_id=? ORDER BY rowid', m.id),
     videos: all("SELECT id,title,kind,url FROM lesson_videos WHERE module_id=? AND kind<>'upload' ORDER BY position,rowid", m.id).map(v => ({
       ...v, checkpoints: all('SELECT id,at_seconds,prompt,options,correct_index FROM video_checkpoints WHERE video_id=? ORDER BY at_seconds', v.id).map(c => ({ ...c, options: JSON.parse(c.options) })) })),
   }));
   return {
     format: FORMAT, version: VERSION, exported_at: new Date().toISOString(),
-    note: 'Content only. No accounts, passwords, sign-offs, approvals, quiz results, photos or uploaded files.',
+    note: 'Content only. No accounts, passwords, sign-offs, approvals, quiz results, photos or uploaded files.' + (includeAnswers ? '' : ' Quiz questions are left out because your role cannot see the answers.'),
     source_domains: all('SELECT domain FROM source_domains ORDER BY domain').map(r => r.domain),
     equipment, modules,
     issues: all('SELECT id,kind,title,body,equipment_id,status FROM issues ORDER BY created_at').map(i => ({ ...i, equipment_id: liveEq.has(i.equipment_id) ? i.equipment_id : null })),
@@ -60,8 +61,15 @@ function validate(data) {
 }
 
 // All-or-nothing. With dryRun the same checks run and the transaction is rolled back.
-function importContent(db, rawData, { actor, config, dryRun = false }) {
+function importContent(db, rawData, { actor, config, dryRun = false, can = null }) {
   const d = validate(rawData);
+  // Importing is a shortcut for adding content, so it needs the same permission as adding each kind of content by hand.
+  if (can) {
+    const need = []; const want = (n, perm, what) => { if (n && !can(perm)) need.push(`${what} (needs “${perm}”)`); };
+    want(d.source_domains.length, 'sources.manage', 'official source websites'); want(d.equipment.length + d.panels.length, 'equipment.edit', 'equipment and photo panels');
+    want(d.modules.length, 'training.author', 'training material'); want(d.issues.length, 'issues.write', 'issues and lessons'); want(d.updates.length, 'updates.record', 'update records');
+    if (need.length) throw new HttpError(403, 'IMPORT_NEEDS_PERMISSION', `This file contains things your role is not allowed to add: ${need.join('; ')}. Nothing was imported.`, { missing: need });
+  }
   const now = new Date().toISOString(), added = {}, skipped = {}, warnings = [];
   const bump = (m, k) => { m[k] = (m[k] || 0) + 1; };
   const has = (table, i) => !!db.prepare(`SELECT 1 FROM ${table} WHERE id=?`).get(i);
@@ -93,7 +101,9 @@ function importContent(db, rawData, { actor, config, dryRun = false }) {
       needEq(`Module "${m.title}"`, m.equipment_id);
       for (const q of m.questions) if (q.correct_index >= q.options.length) bad(`Module "${m.title}": a question's correct answer is out of range.`);
       for (const v of m.videos) {
-        if (!(v.kind === 'sharepoint_embed' ? sharepointUrl(v.url, config.sharepointHosts) : httpsUrl(v.url))) bad(`Module "${m.title}": video "${v.title}" has a link that is not allowed.`);
+        const clean = v.kind === 'sharepoint_embed' ? sharepointUrl(v.url, config.sharepointHosts) : httpsUrl(v.url);
+        if (!clean) bad(`Module "${m.title}": video "${v.title}" has a link that is not allowed.`);
+        v.url = clean;                                             // store the normalised link, never the raw text (stray spaces or line breaks)
         for (const c of v.checkpoints) if (c.correct_index >= c.options.length) bad(`Module "${m.title}": a checkpoint's correct answer is out of range.`);
       }
       db.prepare("INSERT INTO training_modules (id,title,level,equipment_id,summary,status,created_by,updated_by,created_at,updated_at,edit_at) VALUES (?,?,?,?,?,'draft',?,?,?,?,?)").run(m.id, m.title, m.level, m.equipment_id || null, m.summary, actor.id, actor.id, now, now, now);

@@ -22,7 +22,7 @@ function askHidden(q) {
   if (!username || !/^[A-Za-z0-9._@-]{3,64}$/.test(username)) { console.error('Usage: npm run create-admin -- <username> "<Display Name>"'); process.exit(2); }
   const config = loadConfig();
   const db = open(config.dbPath); migrate(db);
-  if (db.prepare("SELECT 1 FROM users WHERE role='admin'").get()) { console.error('An administrator already exists. Use the app (Users) to create more accounts.'); process.exit(1); }
+  if (db.prepare("SELECT 1 FROM users WHERE role='admin'").get()) { console.error('An administrator already exists. Sign in and use Admin → People to create more accounts.'); process.exit(1); }
   let pw = process.env.AVL_ADMIN_PASSWORD;
   if (!pw) {
     pw = await askHidden('New admin password: ');

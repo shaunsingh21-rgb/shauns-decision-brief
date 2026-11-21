@@ -1,16 +1,17 @@
-import { request, ApiError, serverNow } from './http.js';
+import { request, ApiError, serverNow, setActingUser } from './http.js';
 import * as store from './store.js';
 import * as sync from './sync.js';
 export { ApiError };
 
 let uid = null;
-export const setUser = id => { uid = id; };
+export const setUser = id => { uid = id; setActingUser(id); if (!id) lastWarm = 0; };
 const OFFLINE_MSG = 'You appear to be offline. This action needs a connection.';
 const fire = (name, detail) => window.dispatchEvent(new CustomEvent(name, { detail }));
 const fail = r => {
   if (r.status === 401) fire('avl:signed-out');
   if (r.json?.error?.code === 'PASSWORD_CHANGE_REQUIRED') fire('avl:password-change');
   if (r.json?.error?.code === 'MFA_ENROLLMENT_REQUIRED') fire('avl:mfa-enroll');
+  if (r.json?.error?.code === 'SESSION_CHANGED') fire('avl:session-changed');
   return new ApiError(r.status, r.json?.error);
 };
 const offlineErr = () => new ApiError(0, { code: 'OFFLINE', message: OFFLINE_MSG });
@@ -29,7 +30,7 @@ export async function get(path) {
   catch {
     sync.markOffline(true);
     const hit = uid && await store.cacheGet(`${uid}|${path}`);
-    if (hit) return sync.overlay(path, hit.data);
+    if (hit && hit.data && typeof hit.data === 'object') return sync.overlay(path, hit.data);        // a damaged saved copy counts as "not saved"
     const s = sync.synth(path); if (s) return sync.overlay(path, s);
     throw offlineErr();
   }
@@ -64,7 +65,7 @@ export async function upload(file, fields) {
   for (const [k, v] of Object.entries(fields)) if (v != null) fd.append(k, v);
   fd.append('file', file, file.name || 'upload');
   let res;
-  try { res = await fetch('/api/files', { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'x-requested-by': 'avl-hub' } }); }
+  try { res = await fetch('/api/files?purpose=' + encodeURIComponent(fields.purpose || ''), { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'x-requested-by': 'avl-hub' } }); }
   catch { sync.markOffline(true); throw offlineErr(); }
   let json = null; try { json = await res.json(); } catch { /* none */ }
   if (!res.ok) throw fail({ status: res.status, json });
@@ -72,12 +73,13 @@ export async function upload(file, fields) {
 }
 
 // Quietly keep the offline copy fresh: everything you could want to read on a job site, fetched in the background.
-let warming = false;
+let warming = false, lastWarm = 0;
 export async function warmCache(perms = []) {
-  if (warming || !uid) return; warming = true;
+  // At most once every 10 minutes: it fetches about four things per equipment item, which is plenty to ask for.
+  if (warming || !uid || Date.now() - lastWarm < 10 * 60e3) return; warming = true; lastWarm = Date.now();
   const has = p => perms.includes(p);
   const lim = (a, n) => a.slice(0, n);
-  const pool = async (tasks, n = 4) => { const q = [...tasks]; await Promise.all(Array.from({ length: n }, async () => { while (q.length) { try { await q.shift()(); } catch { /* skip */ } } })); };
+  const pool = async (tasks, n = 3) => { const q = [...tasks]; await Promise.all(Array.from({ length: n }, async () => { while (q.length) { try { await q.shift()(); } catch { /* skip */ } } })); };
   try {
     const [eq, mods, panels] = await Promise.all([get('/equipment'), get('/modules'), get('/panels')]);
     const tasks = [() => get('/updates'), () => get('/issues'), () => get('/people'), () => get('/skill-matrix'), () => get('/sources'), () => get(`/progress/${uid}`),

@@ -20,10 +20,22 @@ export const cachePut = async (key, data) => { const rec = { key, data, at: Date
 export const outboxList = async () => { const d = await db(); const all = d ? await run('outbox', 'readonly', s => s.getAll()) : [...mem.outbox]; return all.sort((a, b) => a.seq - b.seq); };
 export const outboxAdd = async op => { const d = await db(); if (d) return run('outbox', 'readwrite', s => s.add(op)); op.seq = ++mem.seq; mem.outbox.push(op); return op.seq; };
 export const outboxPut = async op => { const d = await db(); if (d) return run('outbox', 'readwrite', s => s.put(op)); const i = mem.outbox.findIndex(o => o.seq === op.seq); if (i >= 0) mem.outbox[i] = op; };
+export const outboxGet = async seq => { const d = await db(); return d ? run('outbox', 'readonly', s => s.get(seq)) : mem.outbox.find(o => o.seq === seq); };
 export const outboxDelete = async seq => { const d = await db(); if (d) return run('outbox', 'readwrite', s => s.delete(seq)); mem.outbox = mem.outbox.filter(o => o.seq !== seq); };
 export const metaGet = async k => { const d = await db(); const r = d ? await run('meta', 'readonly', s => s.get(k)) : mem.meta.get(k); return r ? r.v : undefined; };
 export const metaSet = async (k, v) => { const d = await db(); return d ? run('meta', 'readwrite', s => s.put({ k, v })) : void mem.meta.set(k, { k, v }); };
-// Sign-out on a shared device: remove everything this person's session left behind.
+// Sign-out on a shared device: remove everything THIS person left behind. Another person's unsynced work on the same browser is never touched.
+export async function clearUser(uid) {
+  for (const k of [...mem.cache.keys()]) if (k.startsWith(uid + '|')) mem.cache.delete(k);
+  mem.outbox = mem.outbox.filter(o => o.userId !== uid); for (const k of [`notices:${uid}`, `lastSync:${uid}`]) mem.meta.delete(k);
+  const u = mem.meta.get('user'); if (u && u.v && u.v.id === uid) mem.meta.delete('user');
+  const d = await db(); if (!d) return;
+  const keys = await run('cache', 'readonly', s => s.getAllKeys()); for (const k of keys) if (String(k).startsWith(uid + '|')) await run('cache', 'readwrite', s => s.delete(k));
+  const ops = await run('outbox', 'readonly', s => s.getAll()); for (const o of ops) if (o.userId === uid) await run('outbox', 'readwrite', s => s.delete(o.seq));
+  for (const k of [`notices:${uid}`, `lastSync:${uid}`]) await run('meta', 'readwrite', s => s.delete(k));
+  const cur = await run('meta', 'readonly', s => s.get('user')); if (cur && cur.v && cur.v.id === uid) await run('meta', 'readwrite', s => s.delete('user'));
+}
+// Wipe everything (kept for completeness; sign-out uses clearUser).
 export async function clearAll() {
   mem.cache.clear(); mem.outbox = []; mem.meta.clear();
   const d = await db(); if (!d) return;

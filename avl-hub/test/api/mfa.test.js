@@ -78,8 +78,9 @@ test('clock drift: one step either side is fine; three steps is not', async () =
 test('guessing is stopped three ways: 5 tries per ticket, a 5-minute ticket life, and the shared account lockout', async () => {
   const h = await mk({ lockoutMaxFailures: 4 }); const u = await h.makeUser('technician', 'guessy'); const { secret } = await enrol(h, u);
   const { c, r } = await firstStep(h, u);
-  for (let i = 0; i < 3; i++) assert.equal((await c.post('/api/auth/mfa/verify', { challenge: r.body.challenge, code: '111111' })).body.error.code, 'INVALID_CODE');
-  const fourth = await c.post('/api/auth/mfa/verify', { challenge: r.body.challenge, code: '111111' });          // 4th failure hits the lockout limit (4)
+  // the password step counts as 1 attempt, so with a limit of 4 the 3rd wrong code reaches it
+  for (let i = 0; i < 2; i++) assert.equal((await c.post('/api/auth/mfa/verify', { challenge: r.body.challenge, code: '111111' })).body.error.code, 'INVALID_CODE');
+  const fourth = await c.post('/api/auth/mfa/verify', { challenge: r.body.challenge, code: '111111' });
   assert.ok(['CHALLENGE_EXPIRED', 'ACCOUNT_LOCKED'].includes(fourth.body.error.code));
   adv(30); const locked = await h.client().login(u); assert.equal(locked.status, 429, 'wrong codes count toward the same lockout as wrong passwords'); assert.equal(locked.body.error.code, 'ACCOUNT_LOCKED');
   h.db.prepare("DELETE FROM login_failures").run();
@@ -93,7 +94,8 @@ test('guessing is stopped three ways: 5 tries per ticket, a 5-minute ticket life
 });
 
 test('RECOVERY CODES: each works once, any case, count goes down, and using one is audited; regenerating needs password + a code and kills the old set', async () => {
-  const h = await mk(); const u = await h.makeUser('technician', 'recover'); const { secret, codes } = await enrol(h, u);
+  // this test signs in many times, some deliberately failing, so give it a high limit
+  const h = await mk({ lockoutMaxFailures: 50, lockoutGlobalFailures: 100 }); const u = await h.makeUser('technician', 'recover'); const { secret, codes } = await enrol(h, u);
   const useCode = async cd => { const { c, r } = await firstStep(h, u); return { c, res: await c.post('/api/auth/mfa/verify', { challenge: r.body.challenge, code: cd }) }; };
   const a = await useCode(codes[0].toUpperCase()); assert.equal(a.res.status, 200, 'case does not matter'); assert.equal((await a.c.get('/api/auth/mfa')).body.recovery_codes_left, 7);
   assert.equal((await useCode(codes[0])).res.status, 401, 'a recovery code works only once');
@@ -177,4 +179,21 @@ test('command line: reset-mfa (server access) removes it for one person, signs t
   const ok = run('sole.admin'); assert.equal(ok.status, 0, ok.stderr); assert.match(ok.stdout, /now off/);
   assert.equal(h.db.prepare('SELECT COUNT(*) n FROM user_mfa').get().n, 0); assert.equal(h.db.prepare("SELECT actor_name FROM audit_log WHERE action='mfa.reset_cli'").get().actor_name, 'cli');
   assert.match(run('sole.admin').stdout, /did not have/); assert.ok((await h.client().login(u)).body.user);
+});
+
+test('A NEW PERSON IN A TWO-STEP ROLE CAN GET IN: password change and setup do not wait on each other (found by the pre-launch review)', async () => {
+  const h = await mk(); const ac = await h.as(await h.makeUser('admin')); const role = (await ac.post('/api/roles', { name: 'Two Step Staff', permissions: ['equipment.edit'], require_mfa: true })).body.role;
+  const made = await ac.post('/api/users', { username: 'brand.new', display_name: 'B', role: role.id }); const temp = made.body.temporary_password;
+  const c = h.client(); assert.equal((await c.login('brand.new', temp)).status, 200);
+  const me = (await c.get('/api/me')).body.user; assert.deepEqual([me.must_change_password, me.must_enroll_mfa], [true, true]);
+  assert.equal((await c.get('/api/equipment')).status, 403, 'nothing else is available yet');
+  // either order works: password first …
+  const ch = await c.post('/api/auth/change-password', { current_password: temp, new_password: 'A-brand-new-passphrase' }); assert.equal(ch.status, 200, JSON.stringify(ch.body));
+  const s = await c.post('/api/auth/mfa/setup', { password: 'A-brand-new-passphrase' }); assert.equal(s.status, 200); adv(30);
+  assert.equal((await c.post('/api/auth/mfa/enable', { code: code(s.body.secret) })).status, 200); assert.equal((await c.get('/api/equipment')).status, 200, 'through');
+  // … or two-step first (a reset password on someone already in the role)
+  const u2 = await ac.post('/api/users', { username: 'other.new', display_name: 'O', role: role.id }); const c2 = h.client(); await c2.login('other.new', u2.body.temporary_password);
+  const s2 = await c2.post('/api/auth/mfa/setup', { password: u2.body.temporary_password }); assert.equal(s2.status, 200, JSON.stringify(s2.body)); adv(30);
+  assert.equal((await c2.post('/api/auth/mfa/enable', { code: code(s2.body.secret) })).status, 200); assert.equal((await c2.get('/api/equipment')).body.error.code, 'PASSWORD_CHANGE_REQUIRED', 'still must choose a password');
+  assert.equal((await c2.post('/api/auth/change-password', { current_password: u2.body.temporary_password, new_password: 'Another-long-passphrase-1' })).status, 200); assert.equal((await c2.get('/api/equipment')).status, 200);
 });

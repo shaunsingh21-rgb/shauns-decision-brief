@@ -125,10 +125,10 @@ Then continue at 3.5.
 ## 6. Backups (read this once, test it once)
 
 * **Automatic:** every night at 02:15 the app makes a complete, verified copy of the database and all uploaded files (kept: last 14).
-* **Where:** Docker — inside the `avl-data` volume at `/data/backups`. Without Docker — `/opt/avl-hub/backups`.
-* **A backup on the same disk does not protect you from losing the server.** Set `BACKUP_COPY_TO` in `.env` to a second place (a mounted network share, for example) **or** ask IT to include the backup folder in their server backups. Ask IT where is appropriate for records that include names.
+* **Where:** Docker — inside the `avl-data` volume at `/data/backups`. Without Docker — `/opt/avl-hub/backups`. The backup folder is readable only by its owner (it contains password hashes).
+* **A backup on the same disk does not protect you from losing the server.** Under Docker: put `BACKUP_COPY_TO=/offsite` in `.env`, and set `OFFSITE_DIR` there to a folder **on the server** that is a mounted network share (default `./offsite`, which is just a folder next to the app — fine for a test, not protection). Without Docker: set `BACKUP_COPY_TO` to the path of that folder. Or ask IT to include the backup folder in their server backups. **Admin → Backups, export and import** shows how old the newest backup is. Ask IT where is appropriate for records that include names.
 * **Check it is working:** `docker compose exec app node scripts/doctor.js` says how old the newest backup is. Make one now: `docker compose exec app node scripts/backup.js`.
-* **Restoring** (and practising a restore) is described step by step in `docs/BACKUP.md`. **Please do one practice restore on a spare machine in the first month.** A backup you have never restored is a hope, not a backup.
+* **Restoring** (and practising a restore) is described step by step in `docs/BACKUP.md`. **Please do one practice restore on a spare machine in the first month.** (Restore refuses to run while the app is running.) A backup you have never restored is a hope, not a backup.
 
 ---
 
@@ -136,16 +136,16 @@ Then continue at 3.5.
 
 | I want to… | Do this |
 |---|---|
-| Add a person | Admin → Create an account |
+| Add a person | Admin → People → Create an account |
 | Someone forgot their password | Admin → **Reset password** next to their name; give them the temporary one |
-| Someone is locked out (too many wrong tries) | Admin → **Unlock** (it also unlocks itself after 15 minutes) |
+| Someone is locked out (too many wrong tries) | Admin → People: the row says **“Locked out for about N more minutes”** with an **Unlock now** button (it also unlocks itself after 15 minutes). The page also shows when each person last signed in. |
 | Someone left | Admin → **Disable** (their history stays; they can no longer sign in) |
 | Change someone's role | Admin → the role dropdown next to their name |
 | Make a new kind of role (say, someone who can approve equipment but not edit it) | Admin → Roles and permissions → **New role**, tick the permissions, save, then give it to people. Each permission has a one-line explanation. |
 | Change what a role can do | Admin → Roles and permissions → **Edit** (applies to everyone with that role straight away) |
 | Someone lost their phone (two-step sign-in) | Admin → **Reset two-step** next to their name. They can set it up again. |
-| Require two-step sign-in for a role | Admin → Roles → Edit → tick *Require two-step sign-in*. Those people must set it up before they can do anything else. (Needs `MFA_ENCRYPTION_KEY`.) |
-| See who did what | Admin → Recent activity (audit log) |
+| Require two-step sign-in for a role | Admin → Roles and permissions → Edit → tick *Require two-step sign-in* (only a Leader/Admin can change this). Those people must set it up before they can do anything else. (Needs `MFA_ENCRYPTION_KEY`.) |
+| See who did what | Admin → Recent activity (audit log): plain-language entries naming who and what, with a *Show* link for details (versions, scores, before/after) and *Show older activity* |
 | Check health | `docker compose exec app node scripts/doctor.js` |
 | Move content to another install | `Admin → export` / import — see `docs/BACKUP.md` (this is *not* a backup) |
 
@@ -168,7 +168,7 @@ $ docker compose exec app node scripts/backup.js        # always back up first
 $ git pull
 $ docker compose up -d --build
 ```
-Database changes are applied automatically at start-up. If anything looks wrong after an update, restore the backup you just made (`docs/BACKUP.md`).
+Database changes are applied automatically at start-up. If anything looks wrong after an update, restore the backup you just made (`docs/BACKUP.md`). Under systemd the helper commands (`doctor`, `restore`, `reset-password`…) read the same `.env` as the app, so they see the same settings.
 
 ### Single sign-on later
 Sign-in is local username + password for now. The code has a documented place for Microsoft Entra ID (`server/auth/oidc.stub.js`); adding it later does not change anything else. Ask ITS for an "app registration" when you are ready — nothing is needed from them now.

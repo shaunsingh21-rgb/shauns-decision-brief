@@ -175,7 +175,7 @@ test('sign-offs queued offline are append-only events: valid ones are recorded u
   const so = h.db.prepare('SELECT * FROM signoffs').all();
   assert.equal(so.length, 1); assert.equal(so[0].trainee_id, good.id); assert.equal(so[0].signed_by, tcUser.id, 'recorded under the signed-in trainer');
   await sync(page).click(); await page.getByRole('heading', { name: 'Sync' }).waitFor();
-  await page.getByText(/Sign-off requirements are not met/).waitFor(); await page.getByText(/Written: best quiz score is none/).waitFor();
+  await page.getByText(/Sign-off requirements are not met/).waitFor(); await page.getByText(/Written: no quiz taken yet/).waitFor();
   assert.equal(await page.getByRole('button', { name: 'Try again' }).count(), 1);
   await page.getByRole('button', { name: 'Discard' }).click().catch(() => {}); // confirm dialog auto-dismissed by default; discard stays
   page.once('dialog', d => d.accept()); await page.getByRole('button', { name: 'Discard' }).click();

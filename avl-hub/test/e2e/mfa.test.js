@@ -37,7 +37,7 @@ test('a person turns on two-step sign-in themselves, then signs in with a code; 
   assert.equal(await page.getByRole('button', { name: 'Done' }).isDisabled(), true, '“Done” waits until they confirm they saved the codes');
   await page.getByLabel('I have saved these codes').check(); await page.getByRole('button', { name: 'Done' }).click();
   await page.getByText('On', { exact: true }).waitFor(); await page.getByText('Recovery codes left: 8.').waitFor();
-  await page.getByRole('button', { name: 'Sign out' }).click(); await page.getByLabel('Username').waitFor(); await context.close();
+  await page.locator('header.top').getByRole('button', { name: 'Sign out' }).click(); await page.getByLabel('Username').waitFor(); await context.close();
 
   // signing in now needs the second step
   const s = await signIn('tina'); await s.page.getByRole('heading', { name: 'Two-step sign-in' }).waitFor();
@@ -45,10 +45,10 @@ test('a person turns on two-step sign-in themselves, then signs in with a code; 
   const input = s.page.getByLabel('Authentication code'); assert.equal(await input.getAttribute('autocomplete'), 'one-time-code'); assert.equal(await input.getAttribute('inputmode'), 'numeric');
   await input.fill('123456'); await s.page.getByRole('button', { name: 'Sign in' }).click(); await s.page.getByText('That code was not accepted.').waitFor();
   adv(30); await input.fill(code(secret)); await s.page.getByRole('button', { name: 'Sign in' }).click(); await ready(s.page);
-  await s.page.getByRole('button', { name: 'Sign out' }).click(); await s.page.getByLabel('Username').fill('tina'); await s.page.getByLabel('Password').fill(PW); await s.page.getByRole('button', { name: 'Sign in' }).click();
+  await s.page.locator('header.top').getByRole('button', { name: 'Sign out' }).click(); await s.page.getByLabel('Username').fill('tina'); await s.page.getByLabel('Password').fill(PW); await s.page.getByRole('button', { name: 'Sign in' }).click();
   await s.page.getByRole('button', { name: 'Use a recovery code instead' }).click(); await s.page.getByLabel('Recovery code').fill(codes[0].toUpperCase()); await s.page.getByRole('button', { name: 'Sign in' }).click(); await ready(s.page);
   await s.page.getByRole('link', { name: /My account/ }).click(); await s.page.getByText('Recovery codes left: 7.').waitFor();
-  await s.page.getByRole('button', { name: 'Sign out' }).click(); await s.page.getByLabel('Username').fill('tina'); await s.page.getByLabel('Password').fill(PW); await s.page.getByRole('button', { name: 'Sign in' }).click();
+  await s.page.locator('header.top').getByRole('button', { name: 'Sign out' }).click(); await s.page.getByLabel('Username').fill('tina'); await s.page.getByLabel('Password').fill(PW); await s.page.getByRole('button', { name: 'Sign in' }).click();
   await s.page.getByRole('button', { name: 'Use a recovery code instead' }).click(); await s.page.getByLabel('Recovery code').fill(codes[0]); await s.page.getByRole('button', { name: 'Sign in' }).click(); await s.page.getByText('That code was not accepted.').waitFor();
   await s.context.close();
 });
@@ -89,7 +89,7 @@ test('on a server without a key the option says so, and the role form cannot req
 test('the account and code screens on a phone: labelled, 44px, no sideways scroll', async () => {
   // a role that does not require two-step (an earlier test made Technician require it)
   await h.makeUser('viewer', 'mobile.user'); const { page, context } = await signIn('mobile.user', { viewport: { width: 390, height: 844 } }); await ready(page);
-  await page.getByRole('link', { name: /My account/ }).click(); await page.getByRole('button', { name: 'Turn on two-step sign-in' }).click(); await page.getByLabel('Your password').fill(PW); await page.getByRole('button', { name: 'Continue' }).click(); await page.getByRole('img', { name: /QR code/ }).waitFor();
+  await page.getByRole('link', { name: 'Account', exact: true }).click(); await page.getByRole('button', { name: 'Turn on two-step sign-in' }).click(); await page.getByLabel('Your password').fill(PW); await page.getByRole('button', { name: 'Continue' }).click(); await page.getByRole('img', { name: /QR code/ }).waitFor();
   const audit = () => page.evaluate(() => ({
     small: [...document.querySelectorAll('button,a.btn,nav a,.userlink,select,summary,input:not([type=checkbox])')].filter(e => e.offsetParent && e.getBoundingClientRect().height < 43.5).map(e => (e.getAttribute('aria-label') || e.textContent).slice(0, 30)),
     unlabeled: [...document.querySelectorAll('input:not([type=hidden]),select,textarea')].filter(e => e.offsetParent && !e.labels?.length && !e.getAttribute('aria-label')).length, overflow: document.documentElement.scrollWidth > window.innerWidth + 1,

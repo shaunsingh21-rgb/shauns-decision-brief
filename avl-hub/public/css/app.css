@@ -75,3 +75,37 @@ video.lesson{width:100%;max-height:70vh;border-radius:10px;background:#000}
 .key,.codes code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1.05rem;letter-spacing:.04em;word-break:break-all}
 .codes{columns:2;column-gap:24px;padding-left:20px}.codes li{margin:6px 0}
 @media (max-width:560px){.codes{columns:1}}
+
+/* ---- review fixes: long text, focus, header, phone tables, contrast ---- */
+main:focus{outline:none}
+.card,h1,h2,h3,td,th,.hint,.notice,li,legend,label,.badge,summary,code{overflow-wrap:anywhere}
+.btn.primary{background:var(--brand);color:var(--brand-ink);border-color:var(--brand);font-weight:700}
+header.top{position:sticky;top:0;z-index:30}
+.userlink{text-decoration:none}
+.account-nav{display:none}
+.toast{border:0;font:inherit;text-align:left;cursor:pointer;min-height:44px}
+.pin .src{position:absolute;right:-8px;bottom:-8px;min-width:18px;height:18px;padding:0 3px;font-size:.62rem;line-height:18px;border-radius:9px;background:#000;color:#fff;font-weight:800}
+.stage.placing .pin{pointer-events:none}
+.cross.static{border-style:dashed;pointer-events:none}
+.matrix th[scope=row]{position:sticky;left:0;background:var(--card);z-index:1}
+pre.pre,.pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0}
+dl.facts{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;margin:6px 0}dl.facts dt{font-weight:700;color:var(--muted)}dl.facts dd{margin:0}
+@media (prefers-color-scheme:dark){
+  nav.main a[aria-current=page],.userlink[aria-current=page]{background:rgba(0,0,0,.34)}
+  .syncline.s-ok{background:rgba(0,0,0,.34)}
+}
+@media (max-width:600px){
+  header.top{padding:6px 12px}
+  .hdr-user{display:none}
+  .account-nav{display:inline-flex;min-height:44px;align-items:center;padding:0 12px;border-radius:10px;color:#fff;text-decoration:none}
+  .account-nav[aria-current=page]{background:rgba(255,255,255,.2);font-weight:700}
+  nav.main{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-top:2px}
+  nav.main::-webkit-scrollbar{display:none}
+  nav.main a{white-space:nowrap}
+  table.cards thead{position:absolute;left:-9999px}
+  table.cards,table.cards tbody,table.cards tr,table.cards td,table.cards th{display:block;width:100%}
+  table.cards tr{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:10px 0;background:var(--card)}
+  table.cards td,table.cards th{border:0;padding:4px 0}
+  table.cards td[data-label]::before{content:attr(data-label);display:block;font-weight:700;color:var(--muted);font-size:.8rem}
+  table.cards select{width:100%}
+}

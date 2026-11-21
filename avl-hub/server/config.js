@@ -1,6 +1,19 @@
 'use strict';
 // All configuration comes from environment variables. No secrets live in code.
+const fs = require('fs');
 const path = require('path');
+// The helper scripts (doctor, restore, reset-password…) run outside the service manager, so they read the same .env file the server uses.
+// Values already present in the real environment always win. Set AVL_NO_ENV_FILE=1 to skip this (tests do).
+function loadEnvFile() {
+  if (process.env.AVL_NO_ENV_FILE) return;
+  let txt; try { txt = fs.readFileSync(process.env.ENV_FILE || path.join(__dirname, '..', '.env'), 'utf8'); } catch { return; }
+  for (const line of txt.split(/\r?\n/)) {
+    const m = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/.exec(line); if (!m || line.trim().startsWith('#')) continue;
+    let v = m[2]; if (/^(['"]).*\1$/.test(v)) v = v.slice(1, -1);
+    if (process.env[m[1]] === undefined) process.env[m[1]] = v;
+  }
+}
+loadEnvFile();
 const int = (v, d) => (v === undefined || v === '' ? d : parseInt(v, 10));
 module.exports = function loadConfig(overrides = {}) {
   const env = process.env;
@@ -13,6 +26,9 @@ module.exports = function loadConfig(overrides = {}) {
     sessionTtlHours: int(env.SESSION_TTL_HOURS, 12),
     lockoutMaxFailures: int(env.LOCKOUT_MAX_FAILURES, 5),
     lockoutMinutes: int(env.LOCKOUT_MINUTES, 15),
+    lockoutGlobalFailures: int(env.LOCKOUT_GLOBAL_FAILURES, 20),   // per username across ALL addresses (the per-address limit is lockoutMaxFailures)
+    quizAttemptsPerHour: int(env.QUIZ_ATTEMPTS_PER_HOUR, 6),         // per person per module
+    sessionMaxDays: int(env.SESSION_MAX_DAYS, 14),                 // a session never lives longer than this, however busy
     loginIpMax: int(env.LOGIN_IP_MAX, 30),                       // per 15 min per IP
     apiRateMax: int(env.API_RATE_MAX, 600),                      // per minute per IP
     minPasswordLength: int(env.MIN_PASSWORD_LENGTH, 12),

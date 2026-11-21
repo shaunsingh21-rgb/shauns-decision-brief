@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const express = require('express');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const loadConfig = require('./config');
 const { open, migrate } = require('./db');
 const makeAudit = require('./audit');
@@ -54,12 +54,14 @@ function createApp(overrides = {}) {
   }));
   app.get('/healthz', (_req, res) => res.json({ ok: true }));
 
-  const api = makeApi();
-  app.use('/api', rateLimit({ windowMs: 60000, limit: config.apiRateMax, standardHeaders: true, legacyHeaders: false,
-    handler: (_req, res) => res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many requests. Slow down.' } }) }));
+  const api = makeApi({ idem: idempotency(ctx) });                        // replay protection runs AFTER the permission check, per route
+  // The request limit is per PERSON once signed in (a whole team behind one office address no longer shares a single budget), per address before that.
+  const apiLimit = rateLimit({ windowMs: 60000, limit: config.apiRateMax, standardHeaders: true, legacyHeaders: false,
+    keyGenerator: req => (req.user ? 'u:' + req.user.id : ipKeyGenerator(req.ip)),
+    handler: (_req, res) => res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many requests. Slow down.' } }) });
   const smallJson = express.json({ limit: '256kb' });
   app.use('/api', (req, res, next) => (req.path === '/admin/import' ? next() : smallJson(req, res, next)),   // import has its own larger limit, after sign-in
-    (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); }, session(ctx), csrf, idempotency(ctx), api.router);
+    (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); }, session(ctx), apiLimit, csrf, api.router);
   for (const r of ['auth', 'users', 'equipment', 'training', 'issues', 'install', 'external', 'files', 'lessons', 'panels', 'portability', 'roles', 'mfa']) require(`./routes/${r}`)(api, ctx);
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'NOT_FOUND', 'No such endpoint.')));
 
@@ -79,6 +81,8 @@ function createApp(overrides = {}) {
     if (err instanceof HttpError) return res.status(err.status).json({ error: { code: err.code, message: err.message, ...err.extra } });
     if (err.type === 'entity.parse.failed') return res.status(400).json({ error: { code: 'BAD_JSON', message: 'Malformed JSON.' } });
     if (err.type === 'entity.too.large') return res.status(413).json({ error: { code: 'TOO_LARGE', message: 'Request too large.' } });
+    // Malformed input (a bad URL escape, a broken encoded body…) is the caller's mistake: a 400, not a server error with a stack trace.
+    if (err instanceof URIError || (err.status >= 400 && err.status < 500)) return res.status(err.status || 400).json({ error: { code: 'BAD_REQUEST', message: 'That request could not be understood.' } });
     console.error(err);                                                  // details stay in the server log
     res.status(500).json({ error: { code: 'INTERNAL', message: 'Something went wrong.' } });
   });
@@ -97,7 +101,20 @@ function createApp(overrides = {}) {
 }
 
 if (require.main === module) {
-  const { app, ctx } = createApp();
-  app.listen(ctx.config.port, () => console.log(`AVL Hub listening on :${ctx.config.port}`));
+  const { app, ctx, close } = createApp();
+  const server = app.listen(ctx.config.port, () => console.log(`AVL Hub listening on :${ctx.config.port}`));
+  // A heartbeat file next to the database tells restore (which may run in another container) that the app is live and must be stopped first.
+  const beat = path.join(path.dirname(ctx.config.dbPath), '.avl-running');
+  const touch = () => { try { fs.writeFileSync(beat, String(Date.now())); } catch { /* read-only data folder: nothing to signal */ } };
+  touch(); const hb = setInterval(touch, 5000); hb.unref();
+  // Stop cleanly on SIGTERM/SIGINT (docker stop, systemctl stop, Ctrl+C): finish requests, close the database, remove the signal.
+  let stopping = false;
+  const stop = sig => {
+    if (stopping) return; stopping = true; console.log(`${sig} received: finishing requests, then shutting down.`); clearInterval(hb);
+    setTimeout(() => process.exit(1), 10000).unref();
+    server.close(() => { try { close(); } catch { /* already closed */ } try { fs.rmSync(beat, { force: true }); } catch { /* ignore */ } process.exit(0); });
+    if (server.closeIdleConnections) server.closeIdleConnections();
+  };
+  process.on('SIGTERM', () => stop('SIGTERM')); process.on('SIGINT', () => stop('SIGINT'));
 }
 module.exports = { createApp };

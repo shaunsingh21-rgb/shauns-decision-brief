@@ -7,12 +7,25 @@ Element.prototype.append = function (...kids) { return nativeAppend.apply(this, 
 const SAFE_URL = /^(#|\/(?!\/)|https:\/\/)/i;
 // Inline pictures made by our own server (the two-step QR code). Raster formats only: never SVG, which can carry script.
 const DATA_IMG = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
+// While a button's (or form's) handler is still working, the button is disabled, so a double-tap cannot create two of something.
+function busyGuard(fn) {
+  return function (e) {
+    const target = e.currentTarget, out = fn.call(this, e);
+    if (out && typeof out.then === 'function' && target) {
+      const btns = target.tagName === 'FORM' ? [...target.querySelectorAll('button:not([type=button]),input[type=submit]')] : (target.tagName === 'BUTTON' ? [target] : []);
+      const was = btns.map(b => b.disabled); btns.forEach(b => { b.disabled = true; b.setAttribute('aria-busy', 'true'); });
+      out.finally(() => btns.forEach((b, i) => { b.disabled = was[i]; b.removeAttribute('aria-busy'); }));
+    }
+    return out;
+  };
+}
+export const plural = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
 export function h(tag, props, ...kids) {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(props || {})) {
     if (v == null || v === false) continue;
     if (k === 'class') el.className = v;
-    else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2).toLowerCase(), v);
+    else if (k.startsWith('on') && typeof v === 'function') { const ev = k.slice(2).toLowerCase(); el.addEventListener(ev, ev === 'click' || ev === 'submit' ? busyGuard(v) : v); }
     else if ((k === 'href' || k === 'src') && !SAFE_URL.test(String(v)) && !(tag === 'img' && k === 'src' && DATA_IMG.test(String(v)))) continue;   // drops javascript:, http:, and data: except raster images
     else if (k === 'value' || k === 'checked' || k === 'disabled' || k === 'selected') el[k] = v;
     else el.setAttribute(k, v === true ? '' : String(v));

@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const hash = raw => crypto.createHash('sha256').update(raw).digest('hex');
 
 module.exports = function makeSessions(db, config) {
-  const ttlMs = config.sessionTtlHours * 3600 * 1000;
+  const ttlMs = config.sessionTtlHours * 3600 * 1000, maxMs = (config.sessionMaxDays || 14) * 864e5;
   return {
     create(userId, ip) {
       const raw = crypto.randomBytes(32).toString('base64url');
@@ -16,9 +16,10 @@ module.exports = function makeSessions(db, config) {
     lookup(raw) {
       if (typeof raw !== 'string' || raw.length < 20 || raw.length > 100) return null;
       const h = hash(raw);
-      const row = db.prepare(`SELECT s.expires_at, u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id_hash = ?`).get(h);
+      const row = db.prepare(`SELECT s.expires_at, s.created_at AS session_created_at, u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id_hash = ?`).get(h);
       if (!row) return null;
-      if (Date.parse(row.expires_at) <= Date.now() || row.disabled) {
+      // Idle for too long, disabled, or simply too old (a session that is used every day still ends after SESSION_MAX_DAYS).
+      if (Date.parse(row.expires_at) <= Date.now() || row.disabled || Date.parse(row.session_created_at) + maxMs <= Date.now()) {
         db.prepare('DELETE FROM sessions WHERE id_hash = ?').run(h);
         return null;
       }

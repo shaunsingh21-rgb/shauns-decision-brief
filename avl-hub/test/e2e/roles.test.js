@@ -46,7 +46,7 @@ test('an admin creates a role from the screen, gives it to a new person, and tha
   await u.page.getByRole('link', { name: 'Training' }).click(); await u.page.getByRole('heading', { name: 'Training', exact: true }).waitFor();
   assert.equal(await u.page.getByRole('button', { name: 'New module' }).count(), 0, 'cannot write training material');
   await u.page.getByRole('link', { name: 'Issues & lessons' }).click(); await u.page.getByRole('heading', { name: /Issues/ }).waitFor();
-  assert.equal(await u.page.getByText('Log something').count(), 0, 'cannot log issues (no issues.write)');
+  assert.equal(await u.page.getByText('Log an issue or lesson').count(), 0, 'cannot log issues (no issues.write)');
   // the server, not just the screen, enforces it
   const denied = await u.page.evaluate(async () => (await fetch('/api/issues', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-requested-by': 'avl-hub' }, body: JSON.stringify({ kind: 'issue', title: 'sneaky' }) })).status);
   assert.equal(denied, 403);
@@ -75,7 +75,7 @@ test('a person who manages roles but is not an admin sees which powers they cann
 test('export downloads a content file; importing it checks first, then adds nothing twice; a tampered file is refused with reasons', async () => {
   const ac = await h.as(await h.makeUser('admin', 'dataadmin')); await ac.post('/api/equipment', { name: 'SAMPLE exportable', fields: [{ key: 'note', provenance: 'team', value: 'SAMPLE' }] });
   const { page, context } = await open('dataadmin'); await page.getByRole('heading', { name: 'Equipment library' }).waitFor(); await page.getByRole('link', { name: 'Admin', exact: true }).click();
-  await page.getByRole('heading', { name: 'Export and import content' }).waitFor();
+  await page.getByRole('heading', { name: 'Backups, export and import' }).waitFor();
   const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download export' }).click()]);
   const file = path.join(dir, 'export.json'); await dl.saveAs(file); const data = JSON.parse(fs.readFileSync(file, 'utf8'));
   assert.equal(data.format, 'avl-hub-content'); assert.ok(data.equipment.some(e => e.name === 'SAMPLE exportable')); assert.ok(!/password|argon2/i.test(JSON.stringify({ ...data, note: '' })));

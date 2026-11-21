@@ -32,10 +32,11 @@ export async function init(userId) {
   if (S.userId === userId) return;
   S.userId = userId;
   S.ops = (await store.outboxList()).filter(o => o.userId === userId);
-  S.notices = (await store.metaGet('notices:' + userId)) || [];
+  const saved = await store.metaGet('notices:' + userId); S.notices = Array.isArray(saved) ? saved.filter(n => n && typeof n.text === 'string') : [];       // ignore damaged saved data
   S.lastSync = (await store.metaGet('lastSync:' + userId)) || null;
   if (!S.timer) {
-    S.timer = setInterval(() => { if (S.userId && pendingOps().length && !S.syncing) flush(); }, 20000);
+    // Every few seconds: if we think we are offline, check; otherwise send anything waiting. (So "Offline — N waiting" clears itself soon after the signal returns.)
+    S.timer = setInterval(() => { if (!S.userId) return; if (S.offline) probe(); else if (pendingOps().length && !S.syncing) flush(); }, 8000);
     window.addEventListener('online', probe); window.addEventListener('offline', () => markOffline(true));
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') probe(); });
   }
@@ -58,13 +59,18 @@ export async function retry(seq) {
   Object.assign(op, { status: 'pending', error: null, errorMissing: null, attempts: 0, key: 'op-' + crypto.randomUUID() }); await store.outboxPut(op); emit(); flush();
 }
 
+// Only one tab sends at a time (Web Locks), and each change is re-read from storage just before it is sent, so a change that was
+// discarded or already sent in another tab is never sent again.
+const withLock = fn => (navigator.locks && navigator.locks.request ? navigator.locks.request('avl-flush', fn) : fn());
 export async function flush() {
   if (S.syncing || !S.userId) return;
   if (!pendingOps().length) return;
   S.syncing = true; S.needSignIn = false; emit();
   let progressed = false, halted = false;
-  try {
+  try { await withLock(async () => {
+    S.ops = (await store.outboxList()).filter(o => o.userId === S.userId); emit();
     for (const op of pendingOps()) {
+      const fresh = await store.outboxGet(op.seq); if (!fresh || fresh.status !== 'pending') { S.ops = S.ops.filter(o => o.seq !== op.seq); continue; }
       let r;
       try { r = await request(op.method, '/api' + op.path, op.body, { headers: { 'idempotency-key': op.key, 'x-edit-time': op.editTime } }); }
       catch { S.offline = true; halted = true; break; }
@@ -75,11 +81,12 @@ export async function flush() {
       }
       const code = r.json?.error?.code;
       if (r.status === 401) { S.needSignIn = true; halted = true; break; }
+      if (code === 'SESSION_CHANGED') { S.needSignIn = true; halted = true; window.dispatchEvent(new CustomEvent('avl:session-changed')); break; }      // someone else signed in on this browser: do NOT send this person's change under their name
       if (code === 'PASSWORD_CHANGE_REQUIRED' || r.status === 429 || r.status >= 500) { op.attempts++; await store.outboxPut(op); halted = true; break; }
       op.status = 'rejected'; op.error = r.json?.error?.message || `The server refused this change (${r.status}).`; op.errorMissing = r.json?.error?.missing || null;
       await store.outboxPut(op); progressed = true;
     }
-  } finally {
+  }); } finally {
     S.syncing = false;
     if (!halted) { S.lastSync = new Date().toISOString(); await store.metaSet('lastSync:' + S.userId, S.lastSync); }
     emit();

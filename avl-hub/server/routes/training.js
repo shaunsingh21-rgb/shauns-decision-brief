@@ -8,7 +8,7 @@ const PASS_PCT = 80, PASS_SKILL = 2;
 
 module.exports = function trainingRoutes(api, ctx) {
   const { P } = api;
-  const { db, audit } = ctx;
+  const { db, audit, config } = ctx;
   const now = () => new Date().toISOString();
   const isTrainee = uid => { const u = db.prepare('SELECT role FROM users WHERE id=? AND disabled=0').get(uid); return !!u && ctx.roles.permissionsOf(u.role).has('training.take'); };
   const mod = mid => { const m = db.prepare('SELECT * FROM training_modules WHERE id=?').get(mid); if (!m) throw new HttpError(404, 'NOT_FOUND', 'Module not found.'); return m; };
@@ -17,19 +17,23 @@ module.exports = function trainingRoutes(api, ctx) {
     version=version+1, updated_by=?, updated_at=? WHERE id=?`).run(req.user.id, now(), m.id);
 
   // Written and practical progress are computed separately, never merged into one number.
+  // A fingerprint of the questions and their right answers: a score only counts for the quiz it was taken against.
+  const quizHash = moduleId => crypto.createHash('sha256').update(JSON.stringify(db.prepare('SELECT id,prompt,options,correct_index FROM quiz_questions WHERE module_id=? ORDER BY rowid').all(moduleId))).digest('hex');
   function progress(userId, moduleId) {
-    const best = db.prepare('SELECT MAX(score_pct) p FROM quiz_attempts WHERE user_id=? AND module_id=?').get(userId, moduleId).p;
+    const best = db.prepare('SELECT MAX(score_pct) p FROM quiz_attempts WHERE user_id=? AND module_id=? AND (quiz_hash IS NULL OR quiz_hash=?)').get(userId, moduleId, quizHash(moduleId)).p;
     const skills = db.prepare(`
-      SELECT s.id skill_id, s.name, (SELECT score FROM practical_scores p WHERE p.trainee_id=? AND p.skill_id=s.id ORDER BY p.rowid DESC LIMIT 1) score
+      SELECT s.id skill_id, s.name, (SELECT score FROM practical_scores p WHERE p.trainee_id=? AND p.skill_id=s.id ORDER BY p.event_at DESC, p.rowid DESC LIMIT 1) score
       FROM practical_skills s WHERE s.module_id=? ORDER BY s.rowid`).all(userId, moduleId);
     const questions = db.prepare('SELECT COUNT(*) n FROM quiz_questions WHERE module_id=?').get(moduleId).n;
-    const so = db.prepare('SELECT signed_by,created_at FROM signoffs WHERE trainee_id=? AND module_id=?').get(userId, moduleId);
+    const so = db.prepare('SELECT signed_by,created_at,module_version FROM signoffs WHERE trainee_id=? AND module_id=? ORDER BY rowid DESC LIMIT 1').get(userId, moduleId);
+    const cur = db.prepare('SELECT version FROM training_modules WHERE id=?').get(moduleId);
     return {
       module_id: moduleId,
       written: { has_quiz: questions > 0, best_pct: best, passed: best !== null && best >= PASS_PCT, pass_pct: PASS_PCT },
       practical: { skills, pass_score: PASS_SKILL, has_skills: skills.length > 0,
         passed: skills.length > 0 && skills.every(s => s.score !== null && s.score >= PASS_SKILL) },
-      signed_off: so ? { by: so.signed_by, at: so.created_at } : null,
+      // `stale`: the material was changed after this sign-off. The sign-off stays on record, and can be renewed.
+      signed_off: so ? { by: so.signed_by, at: so.created_at, module_version: so.module_version, current_version: cur && cur.version, stale: so.module_version != null && cur && so.module_version !== cur.version } : null,
     };
   }
 
@@ -93,7 +97,7 @@ module.exports = function trainingRoutes(api, ctx) {
     if (m.status === 'approved') throw new HttpError(409, 'ALREADY_APPROVED', 'Already approved.');
     db.transaction(() => {
       db.prepare("UPDATE training_modules SET status='approved',version=version+1,updated_by=?,updated_at=? WHERE id=?").run(req.user.id, now(), m.id);
-      audit(req, 'module.approve', 'module', m.id);
+      audit(req, 'module.approve', 'module', m.id, { module: m.title, approved_version: m.version + 1, reviewed_version: m.version });
     })();
     res.json({ module: mod(m.id) });
   });
@@ -146,13 +150,20 @@ module.exports = function trainingRoutes(api, ctx) {
     const b = parse(z.object({ answers: z.record(id, z.number().int().min(0).max(5)) }).strict(), req.body);
     const qs = db.prepare('SELECT id,correct_index FROM quiz_questions WHERE module_id=?').all(m.id);
     if (!qs.length) throw new HttpError(409, 'NO_QUIZ', 'This module has no quiz yet.');
+    // Every question must be answered (otherwise a single question could be probed on its own), and attempts are limited,
+    // so the right answers cannot be worked out by trial. Only the percentage and pass/fail are returned.
+    const unanswered = qs.filter(q => b.answers[q.id] === undefined).length;
+    if (unanswered) throw new HttpError(400, 'ANSWER_ALL', `Answer every question before submitting (${unanswered} ${unanswered === 1 ? 'is' : 'are'} still blank).`);
+    const since = new Date(Date.now() - 3600e3).toISOString(), cap = config.quizAttemptsPerHour;
+    const recent = db.prepare('SELECT created_at FROM quiz_attempts WHERE user_id=? AND module_id=? AND created_at>? ORDER BY created_at').all(req.user.id, m.id, since);
+    if (recent.length >= cap) { const wait = Math.max(1, Math.ceil((Date.parse(recent[0].created_at) + 3600e3 - Date.now()) / 60000)); throw new HttpError(429, 'TOO_MANY_ATTEMPTS', `You have used ${cap} attempts on this quiz in the last hour. Review the material and try again in ${wait} minute${wait === 1 ? '' : 's'}.`, { retry_after_minutes: wait }); }
     const correct = qs.filter(q => b.answers[q.id] === q.correct_index).length;
     const pct = Math.round(correct / qs.length * 100), passed = pct >= PASS_PCT;
     db.transaction(() => {
-      db.prepare('INSERT INTO quiz_attempts VALUES (?,?,?,?,?,?)').run(crypto.randomUUID(), req.user.id, m.id, pct, +passed, now());
+      db.prepare('INSERT INTO quiz_attempts (id,user_id,module_id,score_pct,passed,created_at,quiz_hash) VALUES (?,?,?,?,?,?,?)').run(crypto.randomUUID(), req.user.id, m.id, pct, +passed, now(), quizHash(m.id));
       audit(req, 'quiz.attempt', 'module', m.id, { score_pct: pct, passed });
     })();
-    res.status(201).json({ score_pct: pct, passed, correct, total: qs.length, pass_pct: PASS_PCT });
+    res.status(201).json({ score_pct: pct, passed, pass_pct: PASS_PCT });
   });
 
   // Practical rubric 0-3, scored by a trainer; the trainer cannot score themselves.
@@ -163,11 +174,14 @@ module.exports = function trainingRoutes(api, ctx) {
     const s = db.prepare('SELECT * FROM practical_skills WHERE id=?').get(b.skill_id);
     if (!s) throw new HttpError(400, 'BAD_SKILL', 'Unknown skill.');
     const pid = crypto.randomUUID();
+    const trainee = db.prepare('SELECT display_name FROM users WHERE id=?').get(b.trainee_id), prior = progress(b.trainee_id, s.module_id).signed_off;
     db.transaction(() => {
-      db.prepare('INSERT INTO practical_scores VALUES (?,?,?,?,?,?,?)').run(pid, b.trainee_id, b.skill_id, b.score, req.user.id, b.note || null, now());
-      audit(req, 'practical.score', 'module', s.module_id, { trainee_id: b.trainee_id, skill_id: b.skill_id, score: b.score });
+      // event_at = when the trainer gave the score (not when it reached the server), so an older offline score cannot override a newer one
+      db.prepare('INSERT INTO practical_scores (id,trainee_id,skill_id,score,scored_by,note,created_at,event_at) VALUES (?,?,?,?,?,?,?,?)').run(pid, b.trainee_id, b.skill_id, b.score, req.user.id, b.note || null, now(), editTime(req));
+      audit(req, 'practical.score', 'module', s.module_id, { trainee: trainee && trainee.display_name, trainee_id: b.trainee_id, skill: s.name, skill_id: b.skill_id, score: b.score });
     })();
-    res.status(201).json({ id: pid });
+    // Re-scoring someone who is already signed off below the pass mark does not undo the sign-off; say so, so it is a conscious choice.
+    res.status(201).json({ id: pid, signed_off_warning: !!(prior && !prior.stale && b.score < PASS_SKILL) });
   });
 
   // Sign-off: quiz >= 80%, every practical skill >= 2, never your own. Append-only, attributed to the session user.
@@ -180,16 +194,18 @@ module.exports = function trainingRoutes(api, ctx) {
     if (sm.status !== 'approved') throw new HttpError(409, 'MODULE_NOT_APPROVED', `This module is ${sm.status === 'needs_review' ? 'waiting for review' : 'still a draft'}. It must be approved before anyone can be signed off on it.`);
     const p = progress(b.trainee_id, b.module_id);
     const missing = [];
-    if (!p.written.has_quiz) missing.push('This module has no quiz.');
-    else if (!p.written.passed) missing.push(`Written: best quiz score is ${p.written.best_pct ?? 'none'}%, needs ${PASS_PCT}%.`);
-    if (!p.practical.has_skills) missing.push('This module has no practical skills defined.');
+    if (!p.written.has_quiz) missing.push('This module has no quiz yet. Add at least one question, have the module approved again, and then sign-off is possible.');
+    else if (!p.written.passed) missing.push(p.written.best_pct == null ? `Written: no quiz taken yet (${PASS_PCT}% needed).` : `Written: best quiz score is ${p.written.best_pct}%, needs ${PASS_PCT}%.`);
+    if (!p.practical.has_skills) missing.push('This module has no practical skills yet. Add at least one skill, have the module approved again, and then sign-off is possible.');
     else p.practical.skills.filter(s => s.score === null || s.score < PASS_SKILL).forEach(s => missing.push(`Practical: "${s.name}" is ${s.score ?? 'unscored'}, needs ${PASS_SKILL}+.`));
     if (missing.length) throw new HttpError(409, 'REQUIREMENTS_NOT_MET', 'Sign-off requirements are not met.', { missing });
-    if (p.signed_off) throw new HttpError(409, 'ALREADY_SIGNED_OFF', 'Already signed off.');
-    const sid = crypto.randomUUID();
+    // A sign-off stands for one version of the material. Once the material has changed, it can be renewed.
+    if (p.signed_off && !p.signed_off.stale) throw new HttpError(409, 'ALREADY_SIGNED_OFF', 'Already signed off on the current version of this module.');
+    const sid = crypto.randomUUID(), trainee = db.prepare('SELECT display_name FROM users WHERE id=?').get(b.trainee_id);
+    const scores = p.practical.skills.map(s => ({ skill: s.name, score: s.score }));
     db.transaction(() => {
-      db.prepare('INSERT INTO signoffs VALUES (?,?,?,?,?,?,?)').run(sid, b.trainee_id, b.module_id, req.user.id, p.written.best_pct, b.note || null, now());
-      audit(req, 'signoff.create', 'module', b.module_id, { trainee_id: b.trainee_id, quiz_pct: p.written.best_pct });
+      db.prepare('INSERT INTO signoffs (id,trainee_id,module_id,signed_by,quiz_pct,note,created_at,module_version,scores) VALUES (?,?,?,?,?,?,?,?,?)').run(sid, b.trainee_id, b.module_id, req.user.id, p.written.best_pct, b.note || null, now(), sm.version, JSON.stringify(scores));
+      audit(req, 'signoff.create', 'module', b.module_id, { trainee: trainee && trainee.display_name, trainee_id: b.trainee_id, module: sm.title, module_version: sm.version, quiz_pct: p.written.best_pct, scores, note: b.note || null, renewal: !!p.signed_off });
     })();
     res.status(201).json({ id: sid });
   });
@@ -201,13 +217,17 @@ module.exports = function trainingRoutes(api, ctx) {
     res.json({ progress: mods.map(m => ({ title: m.title, level: m.level, ...progress(uid, m.id) })) });
   });
 
-  api.get('/skill-matrix', 'any', async (_req, res) => {
-    const users = db.prepare('SELECT id,display_name,role FROM users WHERE disabled=0 ORDER BY display_name').all().filter(u => ctx.roles.permissionsOf(u.role).has('training.take'))
+  // The matrix shows everyone's scores, so it follows "See everyone's training progress": without it you see only your own row.
+  api.get('/skill-matrix', 'any', async (req, res) => {
+    const all = req.permissions.has('progress.view_all');
+    const users = db.prepare('SELECT id,display_name,role FROM users WHERE disabled=0 ORDER BY display_name').all().filter(u => (all || u.id === req.user.id) && ctx.roles.permissionsOf(u.role).has('training.take'))
       .map(u => ({ id: u.id, display_name: u.display_name, role_name: (ctx.roles.get(u.role) || {}).name || u.role }));
     const skills = db.prepare(`SELECT s.id,s.name,m.id module_id,m.title module_title,m.level FROM practical_skills s JOIN training_modules m ON m.id=s.module_id ORDER BY m.level,m.title,s.rowid`).all();
     const scores = {};
-    for (const r of db.prepare(`SELECT trainee_id,skill_id,score FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY trainee_id,skill_id ORDER BY rowid DESC) rn FROM practical_scores) WHERE rn=1`).all())
-      (scores[r.trainee_id] ||= {})[r.skill_id] = r.score;
-    res.json({ users, skills, scores, signoffs: db.prepare('SELECT trainee_id,module_id FROM signoffs').all() });
+    for (const r of db.prepare(`SELECT trainee_id,skill_id,score FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY trainee_id,skill_id ORDER BY event_at DESC, rowid DESC) rn FROM practical_scores) WHERE rn=1`).all())
+      if (all || r.trainee_id === req.user.id) (scores[r.trainee_id] ||= {})[r.skill_id] = r.score;
+    const signoffs = db.prepare(`SELECT s.trainee_id, s.module_id, (s.module_version IS NOT NULL AND s.module_version <> m.version) AS stale FROM signoffs s JOIN training_modules m ON m.id=s.module_id
+      WHERE s.rowid IN (SELECT MAX(rowid) FROM signoffs GROUP BY trainee_id, module_id)`).all().filter(x => all || x.trainee_id === req.user.id).map(x => ({ ...x, stale: !!x.stale }));
+    res.json({ users, skills, scores, signoffs });
   });
 };

@@ -16,7 +16,7 @@ export async function render(root) {
   root.append(h('h1', {}, 'Issues & lessons learned'));
   if (can('issues.write')) {
     const k = select([['issue', 'Issue'], ['lesson', 'Lesson learned']], 'issue'), t = h('input', { maxlength: 160 }), b = h('textarea', { maxlength: 4000 }), e = select([['', 'None'], ...equipment.map(x => [x.id, x.name])], '');
-    root.append(h('details', { class: 'card' }, h('summary', {}, 'Log something'), field('Type', k), field('Title', t), field('Details', b), field('Related equipment (optional)', e),
+    root.append(h('details', { class: 'card' }, h('summary', {}, 'Log an issue or lesson'), field('Type', k), field('Title', t), field('Details', b), field('Related equipment (optional)', e),
       h('button', { class: 'primary', onclick: async () => { try { const r = await mutate('POST', '/issues', { id: crypto.randomUUID(), kind: k.value, title: t.value, body: b.value, ...(e.value ? { equipment_id: e.value } : {}) }, { label: `Log “${t.value}”` }); if (!noteQueued(r)) toast('Logged.'); clear(root); render(root); } catch (x) { toast(errMsg(x)); } } }, 'Save')));
   }
   root.append(field('Show', f), list); draw();

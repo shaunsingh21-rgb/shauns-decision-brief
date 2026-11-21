@@ -40,7 +40,7 @@ async function harness(overrides = {}) {
       async upload(fields, bytes, filename = 'x.bin', type = 'application/octet-stream', { csrf = true } = {}) {
         const fd = new FormData(); for (const [k, v] of Object.entries(fields)) fd.append(k, v);       // purpose first, like the browser client
         fd.append('file', new Blob([bytes], { type }), filename);
-        const res = await fetch(base + '/api/files', { method: 'POST', body: fd, headers: { ...(csrf ? { 'x-requested-by': 'avl-hub' } : {}), ...(cookie ? { cookie } : {}) } });
+        const res = await fetch(base + '/api/files?purpose=' + encodeURIComponent(fields.purpose || ''), { method: 'POST', body: fd, headers: { ...(csrf ? { 'x-requested-by': 'avl-hub' } : {}), ...(cookie ? { cookie } : {}) } });
         let json = null; try { json = await res.json(); } catch {} return { status: res.status, body: json };
       },
       async raw(p, headers = {}) { const r = await fetch(base + p, { headers: { ...(cookie ? { cookie } : {}), ...headers } }); return { status: r.status, headers: r.headers, buf: Buffer.from(await r.arrayBuffer()) }; },
