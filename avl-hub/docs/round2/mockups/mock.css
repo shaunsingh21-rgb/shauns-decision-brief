@@ -1,0 +1,33 @@
+/* Additions the mock-ups need on top of the app's own app.css. Same tokens (var(--...)), no new colours except via tokens. */
+.sample-banner{margin:0 0 10px}
+.stats{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+.stat{display:flex;flex-direction:column;gap:6px;margin:0;text-decoration:none;color:inherit}
+.stat .n{font-size:2.2rem;font-weight:800;line-height:1;letter-spacing:-.03em}
+.stat h3{margin:0;font-size:1rem}
+.stat ul{margin:0;padding-left:18px;font-size:.92rem}
+.stat .more{margin-top:auto;font-weight:700;color:var(--accent);min-height:44px;display:flex;align-items:center}
+.sev-now{border-left:6px solid var(--bad)}.sev-week{border-left:6px solid var(--warn)}.sev-info{border-left:6px solid var(--line)}
+.b-bad{color:var(--bad);background:var(--bad-bg)}
+.b-none{color:var(--muted);background:var(--card)}
+.ready-strip{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.ready-strip .big{font-size:2rem;font-weight:800}
+.cellstack{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.mini{font-size:.82rem;color:var(--muted)}
+table.mx th,table.mx td{font-size:.9rem}
+table.mx thead th{position:sticky;top:0;background:var(--card)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.tabs a{min-height:44px;display:inline-flex;align-items:center;padding:0 14px;border:1px solid var(--line);border-radius:10px;text-decoration:none;background:var(--card);color:inherit}
+.tabs a[aria-current=page]{background:var(--brand);color:var(--brand-ink);border-color:var(--brand);font-weight:700}
+.rec-head{display:grid;grid-template-columns:max-content 1fr;gap:2px 14px}
+.rec-head dt{font-weight:700;color:var(--muted)}.rec-head dd{margin:0}
+.hash{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;word-break:break-all}
+.sig{display:flex;gap:40px;margin-top:28px;flex-wrap:wrap}.sig div{flex:1 1 200px;border-top:1px solid var(--ink);padding-top:4px;font-size:.85rem}
+.ev h3{margin-top:0}
+.pill{display:inline-block;padding:1px 8px;border-radius:99px;border:1px solid var(--line);font-size:.8rem;color:var(--muted)}
+.spec{font-size:.88rem;border:1px dashed var(--line);border-radius:10px;padding:8px 12px;margin:14px 0;color:var(--muted)}
+.spec code{font-size:.85rem}
+@media print{
+  header.top,.noprint,.spec,.sample-banner nav{display:none!important}
+  body{background:#fff;color:#000}.card{border:1px solid #999;break-inside:avoid}
+  :root{--bg:#fff;--card:#fff;--ink:#000;--muted:#333;--line:#999}
+}

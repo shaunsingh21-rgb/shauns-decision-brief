@@ -51,7 +51,11 @@ async function createBackup({ dbPath, uploadDir, backupDir, keep = 14, now = new
     fs.writeFileSync(path.join(partial, 'manifest.json'), JSON.stringify(manifest, null, 2));
     lockTree(partial);                                              // backups hold password hashes: readable by their owner only
     fs.renameSync(partial, final);                                 // only a complete backup ever gets the real name
-    return { dir: final, manifest, pruned: prune(backupDir, keep) };
+    // CLOCK GUARD: backup folders are named by time and pruning deletes the lowest names. If the server clock jumped BACKWARDS (dead battery, restored VM
+    // snapshot) the brand-new backup would sort first and be the one deleted. Never prune in that situation; say so loudly instead.
+    const newestOther = listBackups(backupDir).filter(n => n !== path.basename(final)).at(-1);
+    const clockBehind = !!newestOther && path.basename(final) < newestOther;
+    return { dir: final, manifest, pruned: clockBehind ? [] : prune(backupDir, keep), clockBehind, newestOther };
   } catch (e) { fs.rmSync(partial, { recursive: true, force: true }); throw e; }
 }
 // Deletes only folders that match our exact naming pattern, oldest first, keeping the newest `keep`.

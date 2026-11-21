@@ -46,10 +46,18 @@ module.exports = function equipmentRoutes(api, ctx) {
     return e;
   };
 
-  api.get('/equipment', 'any', async (_req, res) => res.json({ equipment: db.prepare(
-    `SELECT e.id,e.name,e.manufacturer,e.category,e.status,e.version,e.updated_at,
+  // PROTOTYPE: the list is the same for everyone, so serialise it once and reuse it until something in `equipment` changes.
+  // Every write path (create, edit, approve, submit, delete) bumps updated_at and/or version, so (count, max updated_at, sum version) is a safe stamp.
+  let memo = { stamp: null, body: null };
+  const stampQ = db.prepare('SELECT COUNT(*) n, MAX(updated_at) m, SUM(version) v FROM equipment WHERE deleted_at IS NULL');
+  const listQ = db.prepare(`SELECT e.id,e.name,e.manufacturer,e.category,e.status,e.version,e.updated_at,
        (SELECT COUNT(*) FROM equipment_fields f WHERE f.equipment_id=e.id AND f.provenance='verify') AS verify_count
-     FROM equipment e WHERE deleted_at IS NULL ORDER BY e.name`).all() }));
+     FROM equipment e WHERE deleted_at IS NULL ORDER BY e.name`);
+  api.get('/equipment', 'any', async (_req, res) => {
+    const st = stampQ.get(), stamp = st.n + '|' + st.m + '|' + st.v;
+    if (memo.stamp !== stamp) memo = { stamp, body: JSON.stringify({ equipment: listQ.all() }) };
+    res.type('application/json').send(memo.body);
+  });
   api.get('/equipment/:id', 'any', async (req, res) => res.json({ equipment: full(parse(id, req.params.id)) }));
 
   api.post('/equipment', P('equipment.edit'), async (req, res) => {

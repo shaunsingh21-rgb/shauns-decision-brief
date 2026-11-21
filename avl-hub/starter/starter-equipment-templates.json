@@ -1,0 +1,1905 @@
+{
+  "format": "avl-hub-content",
+  "version": 1,
+  "exported_at": "2026-11-21T02:27:46.721Z",
+  "note": "SAMPLE category templates. Every value is VERIFY (empty). Nothing here is a manufacturer specification.",
+  "source_domains": [],
+  "equipment": [
+    {
+      "id": "6d721aa8-a242-492e-99bb-9ef5d0cda269",
+      "name": "SAMPLE – Digital mixer (template)",
+      "manufacturer": null,
+      "category": "Digital mixer",
+      "fields": [
+        {
+          "key": "asset_tag",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "bus_count",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "cable_types",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "clocking_source",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "expansion_slots",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "firmware_version",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "input_count",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "known_quirks",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "last_verified_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "location_or_rack",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "manual_location",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "mounting",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "network_ports",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "network_protocols",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "output_count",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "power_requirements",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "remote_control_options",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "scene_storage",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "serial_number",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "spares_and_consumables",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "stage_box_connection",
+          "value": "",
+          "provenance": "verify"
+        }
+      ],
+      "install_steps": [
+        {
+          "text": "Before: Confirm the power requirements in the manual before connecting.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Label every cable at both ends before you plug it in.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Check the VERIFY items on this record and confirm them from the manual or the device itself.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Note the current firmware version and any settings you change, so you can undo them.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Save or back up the current scene or show file to a safe location before changing anything.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Power down in the order the manual describes, and coil and label cables.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Record any problem or lesson learned in Issues and Lessons.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Return the item and any accessories to its listed location.",
+          "provenance": "team"
+        }
+      ]
+    },
+    {
+      "id": "bbaa9e94-1681-4671-92eb-60c36c3c3085",
+      "name": "SAMPLE – Wireless microphone system (template)",
+      "manufacturer": null,
+      "category": "Wireless microphone system",
+      "fields": [
+        {
+          "key": "antenna_setup",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "asset_tag",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "battery_type",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "cable_types",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "channel_count",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "firmware_version",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "frequency_band",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "frequency_plan_location",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "known_quirks",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "last_verified_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "location_or_rack",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "manual_location",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "mounting",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "network_ports",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "power_requirements",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "rack_units",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "serial_number",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "spares_and_consumables",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "transmitter_types",
+          "value": "",
+          "provenance": "verify"
+        }
+      ],
+      "install_steps": [
+        {
+          "text": "Before: Confirm the power requirements in the manual before connecting.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Label every cable at both ends before you plug it in.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Check the VERIFY items on this record and confirm them from the manual or the device itself.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Note the current firmware version and any settings you change, so you can undo them.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Replace or check batteries and note which units need charging.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Power down in the order the manual describes, and coil and label cables.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Record any problem or lesson learned in Issues and Lessons.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Return the item and any accessories to its listed location.",
+          "provenance": "team"
+        }
+      ]
+    },
+    {
+      "id": "e3d67821-84c0-43af-9ee8-b08ae3edb9f8",
+      "name": "SAMPLE – Camera (template)",
+      "manufacturer": null,
+      "category": "Camera",
+      "fields": [
+        {
+          "key": "asset_tag",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "audio_inputs",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "battery_or_power_type",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "cable_types",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "control_interface",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "firmware_version",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "known_quirks",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "last_verified_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "lens_mount",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "location_or_rack",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "manual_location",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "mounting",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "power_requirements",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "recording_media",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "sensor_or_format",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "serial_number",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "spares_and_consumables",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "tally_support",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "video_outputs",
+          "value": "",
+          "provenance": "verify"
+        }
+      ],
+      "install_steps": [
+        {
+          "text": "Before: Confirm the power requirements in the manual before connecting.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Label every cable at both ends before you plug it in.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Check the VERIFY items on this record and confirm them from the manual or the device itself.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Note the current firmware version and any settings you change, so you can undo them.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Power down in the order the manual describes, and coil and label cables.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Record any problem or lesson learned in Issues and Lessons.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Return the item and any accessories to its listed location.",
+          "provenance": "team"
+        }
+      ]
+    },
+    {
+      "id": "46ea5604-7c62-4203-89d8-dddd728fc146",
+      "name": "SAMPLE – PTZ camera (template)",
+      "manufacturer": null,
+      "category": "PTZ camera",
+      "fields": [
+        {
+          "key": "asset_tag",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "cable_types",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "ceiling_or_wall_mount",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "control_protocols",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "firmware_version",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "ip_address_scheme",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "known_quirks",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "last_verified_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "location_or_rack",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "manual_location",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "mounting",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "network_ports",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "power_over_ethernet",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "power_requirements",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "preset_count",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "serial_number",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "spares_and_consumables",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "tally_support",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "video_outputs",
+          "value": "",
+          "provenance": "verify"
+        }
+      ],
+      "install_steps": [
+        {
+          "text": "Before: Confirm the power requirements in the manual before connecting.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Label every cable at both ends before you plug it in.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Check the VERIFY items on this record and confirm them from the manual or the device itself.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Note the current firmware version and any settings you change, so you can undo them.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Power down in the order the manual describes, and coil and label cables.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Record any problem or lesson learned in Issues and Lessons.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Return the item and any accessories to its listed location.",
+          "provenance": "team"
+        }
+      ]
+    },
+    {
+      "id": "8989fc2e-3a70-4c1d-a5fe-e3736e321a5b",
+      "name": "SAMPLE – Video switcher (template)",
+      "manufacturer": null,
+      "category": "Video switcher",
+      "fields": [
+        {
+          "key": "asset_tag",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "cable_types",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "control_surface",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "firmware_version",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "genlock_or_reference",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "input_count",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "input_signal_types",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "known_quirks",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "last_verified_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "location_or_rack",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "manual_location",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "mounting",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "multiview_support",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "network_ports",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "output_count",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "output_signal_types",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "power_requirements",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "serial_number",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "spares_and_consumables",
+          "value": "",
+          "provenance": "verify"
+        }
+      ],
+      "install_steps": [
+        {
+          "text": "Before: Confirm the power requirements in the manual before connecting.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Label every cable at both ends before you plug it in.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Check the VERIFY items on this record and confirm them from the manual or the device itself.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Note the current firmware version and any settings you change, so you can undo them.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Power down in the order the manual describes, and coil and label cables.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Record any problem or lesson learned in Issues and Lessons.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Return the item and any accessories to its listed location.",
+          "provenance": "team"
+        }
+      ]
+    },
+    {
+      "id": "a62743f5-cee3-4100-9790-187e73fbc166",
+      "name": "SAMPLE – Projector (template)",
+      "manufacturer": null,
+      "category": "Projector",
+      "fields": [
+        {
+          "key": "asset_tag",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "cable_types",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "filter_type",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "firmware_version",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "input_ports",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "known_quirks",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "lamp_or_laser_type",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "last_verified_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "lens_type",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "location_or_rack",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "manual_location",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "mounting",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "mounting_hardware",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "native_resolution",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "network_ports",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "power_requirements",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "serial_number",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "spares_and_consumables",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "throw_distance_notes",
+          "value": "",
+          "provenance": "verify"
+        }
+      ],
+      "install_steps": [
+        {
+          "text": "Before: Confirm the power requirements in the manual before connecting.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Label every cable at both ends before you plug it in.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Check the VERIFY items on this record and confirm them from the manual or the device itself.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Note the current firmware version and any settings you change, so you can undo them.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Let the unit cool as the manual requires before unplugging or packing.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Power down in the order the manual describes, and coil and label cables.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Record any problem or lesson learned in Issues and Lessons.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Return the item and any accessories to its listed location.",
+          "provenance": "team"
+        }
+      ]
+    },
+    {
+      "id": "216bf02c-d6f4-442a-b68b-71810a4900d9",
+      "name": "SAMPLE – LED wall processor (template)",
+      "manufacturer": null,
+      "category": "LED wall processor",
+      "fields": [
+        {
+          "key": "asset_tag",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "brightness_settings_location",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "cable_types",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "canvas_size",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "firmware_version",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "input_ports",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "known_quirks",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "last_verified_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "location_or_rack",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "manual_location",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "mounting",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "network_ports",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "output_ports",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "power_requirements",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "scaling_options",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "serial_number",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "spare_panels",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "spares_and_consumables",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "tile_or_panel_type",
+          "value": "",
+          "provenance": "verify"
+        }
+      ],
+      "install_steps": [
+        {
+          "text": "Before: Confirm the power requirements in the manual before connecting.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Label every cable at both ends before you plug it in.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Check the VERIFY items on this record and confirm them from the manual or the device itself.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Note the current firmware version and any settings you change, so you can undo them.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Power down in the order the manual describes, and coil and label cables.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Record any problem or lesson learned in Issues and Lessons.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Return the item and any accessories to its listed location.",
+          "provenance": "team"
+        }
+      ]
+    },
+    {
+      "id": "76a66118-4a0d-4aac-b42d-ce4343095dab",
+      "name": "SAMPLE – Audio DSP/processor (template)",
+      "manufacturer": null,
+      "category": "Audio DSP/processor",
+      "fields": [
+        {
+          "key": "asset_tag",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "cable_types",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "clocking_source",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "file_locations",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "firmware_version",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "input_count",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "known_quirks",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "last_verified_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "location_or_rack",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "manual_location",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "mounting",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "network_ports",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "network_protocols",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "output_count",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "power_requirements",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "preset_storage",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "serial_number",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "software_required",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "spares_and_consumables",
+          "value": "",
+          "provenance": "verify"
+        }
+      ],
+      "install_steps": [
+        {
+          "text": "Before: Confirm the power requirements in the manual before connecting.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Label every cable at both ends before you plug it in.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Check the VERIFY items on this record and confirm them from the manual or the device itself.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Note the current firmware version and any settings you change, so you can undo them.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Power down in the order the manual describes, and coil and label cables.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Record any problem or lesson learned in Issues and Lessons.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Return the item and any accessories to its listed location.",
+          "provenance": "team"
+        }
+      ]
+    },
+    {
+      "id": "a2bd66da-8ed1-4c33-8573-3dec393a686f",
+      "name": "SAMPLE – Power amplifier (template)",
+      "manufacturer": null,
+      "category": "Power amplifier",
+      "fields": [
+        {
+          "key": "asset_tag",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "cable_types",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "channel_count",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "cooling_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "firmware_version",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "input_connectors",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "known_quirks",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "last_verified_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "load_impedance_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "location_or_rack",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "manual_location",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "mounting",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "network_monitoring",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "output_connectors",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "power_requirements",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "protect_mode_behaviour",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "rack_units",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "serial_number",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "spares_and_consumables",
+          "value": "",
+          "provenance": "verify"
+        }
+      ],
+      "install_steps": [
+        {
+          "text": "Before: Confirm the power requirements in the manual before connecting.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Label every cable at both ends before you plug it in.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Check the VERIFY items on this record and confirm them from the manual or the device itself.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Note the current firmware version and any settings you change, so you can undo them.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Turn output levels down before powering on or connecting speakers.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Power down in the order the manual describes, and coil and label cables.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Record any problem or lesson learned in Issues and Lessons.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Return the item and any accessories to its listed location.",
+          "provenance": "team"
+        }
+      ]
+    },
+    {
+      "id": "dcdfedf4-a655-48e0-96bf-9f5b4415dcd7",
+      "name": "SAMPLE – Network switch (template)",
+      "manufacturer": null,
+      "category": "Network switch",
+      "fields": [
+        {
+          "key": "asset_tag",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "cable_types",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "config_backup_location",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "firmware_version",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "known_quirks",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "last_verified_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "location_or_rack",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "management_address",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "manual_location",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "mounting",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "poe_budget",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "port_count",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "port_labels_location",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "power_requirements",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "rack_units",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "serial_number",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "spares_and_consumables",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "uplink_ports",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "vlan_plan_location",
+          "value": "",
+          "provenance": "verify"
+        }
+      ],
+      "install_steps": [
+        {
+          "text": "Before: Confirm the power requirements in the manual before connecting.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Label every cable at both ends before you plug it in.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Check the VERIFY items on this record and confirm them from the manual or the device itself.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Note the current firmware version and any settings you change, so you can undo them.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Back up the current configuration before changing any setting.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Power down in the order the manual describes, and coil and label cables.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Record any problem or lesson learned in Issues and Lessons.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Return the item and any accessories to its listed location.",
+          "provenance": "team"
+        }
+      ]
+    },
+    {
+      "id": "dd23dd81-a8a7-464b-af0e-e9a326a5bda0",
+      "name": "SAMPLE – Stage box/snake (template)",
+      "manufacturer": null,
+      "category": "Stage box/snake",
+      "fields": [
+        {
+          "key": "asset_tag",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "cable_length",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "cable_types",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "connector_types",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "firmware_version",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "input_count",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "known_quirks",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "last_verified_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "link_type",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "location_or_rack",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "manual_location",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "mounting",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "network_ports",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "power_requirements",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "return_count",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "road_case_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "serial_number",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "spare_fan_in_out",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "spares_and_consumables",
+          "value": "",
+          "provenance": "verify"
+        }
+      ],
+      "install_steps": [
+        {
+          "text": "Before: Confirm the power requirements in the manual before connecting.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Label every cable at both ends before you plug it in.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Check the VERIFY items on this record and confirm them from the manual or the device itself.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Note the current firmware version and any settings you change, so you can undo them.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Power down in the order the manual describes, and coil and label cables.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Record any problem or lesson learned in Issues and Lessons.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Return the item and any accessories to its listed location.",
+          "provenance": "team"
+        }
+      ]
+    },
+    {
+      "id": "d74b98f0-0dbb-48fa-b35f-46d0215d7c65",
+      "name": "SAMPLE – Intercom (template)",
+      "manufacturer": null,
+      "category": "Intercom",
+      "fields": [
+        {
+          "key": "asset_tag",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "beltpack_types",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "cable_types",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "channel_count",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "firmware_version",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "headset_connectors",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "known_quirks",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "last_verified_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "location_or_rack",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "manual_location",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "mounting",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "network_ports",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "power_requirements",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "power_supply_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "serial_number",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "spare_headsets",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "spares_and_consumables",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "station_count",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "wired_or_wireless",
+          "value": "",
+          "provenance": "verify"
+        }
+      ],
+      "install_steps": [
+        {
+          "text": "Before: Confirm the power requirements in the manual before connecting.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Label every cable at both ends before you plug it in.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Check the VERIFY items on this record and confirm them from the manual or the device itself.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Note the current firmware version and any settings you change, so you can undo them.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Power down in the order the manual describes, and coil and label cables.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Record any problem or lesson learned in Issues and Lessons.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Return the item and any accessories to its listed location.",
+          "provenance": "team"
+        }
+      ]
+    },
+    {
+      "id": "e28f1e5c-2e2f-481d-aea5-6138e3b9c87b",
+      "name": "SAMPLE – Lighting console (template)",
+      "manufacturer": null,
+      "category": "Lighting console",
+      "fields": [
+        {
+          "key": "asset_tag",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "backup_procedure_location",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "cable_types",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "firmware_version",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "fixture_library_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "known_quirks",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "last_verified_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "location_or_rack",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "manual_location",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "mounting",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "network_protocols",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "output_ports",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "power_requirements",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "remote_control_options",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "serial_number",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "show_file_location",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "software_version",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "spares_and_consumables",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "universe_count",
+          "value": "",
+          "provenance": "verify"
+        }
+      ],
+      "install_steps": [
+        {
+          "text": "Before: Confirm the power requirements in the manual before connecting.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Label every cable at both ends before you plug it in.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Check the VERIFY items on this record and confirm them from the manual or the device itself.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Note the current firmware version and any settings you change, so you can undo them.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Power down in the order the manual describes, and coil and label cables.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Record any problem or lesson learned in Issues and Lessons.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Return the item and any accessories to its listed location.",
+          "provenance": "team"
+        }
+      ]
+    },
+    {
+      "id": "5d5dad28-e9d7-45d8-8fd0-24c48911b0d7",
+      "name": "SAMPLE – Media server/playback computer (template)",
+      "manufacturer": null,
+      "category": "Media server/playback computer",
+      "fields": [
+        {
+          "key": "asset_tag",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "audio_outputs",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "backup_and_restore_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "cable_types",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "firmware_version",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "known_quirks",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "last_verified_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "license_notes",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "location_or_rack",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "manual_location",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "mounting",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "network_ports",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "operating_system",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "power_requirements",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "serial_number",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "software_installed",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "spares_and_consumables",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "storage_locations",
+          "value": "",
+          "provenance": "verify"
+        },
+        {
+          "key": "video_outputs",
+          "value": "",
+          "provenance": "verify"
+        }
+      ],
+      "install_steps": [
+        {
+          "text": "Before: Confirm the power requirements in the manual before connecting.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Label every cable at both ends before you plug it in.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Check the VERIFY items on this record and confirm them from the manual or the device itself.",
+          "provenance": "team"
+        },
+        {
+          "text": "Before: Note the current firmware version and any settings you change, so you can undo them.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Power down in the order the manual describes, and coil and label cables.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Record any problem or lesson learned in Issues and Lessons.",
+          "provenance": "team"
+        },
+        {
+          "text": "After: Return the item and any accessories to its listed location.",
+          "provenance": "team"
+        }
+      ]
+    }
+  ],
+  "modules": [],
+  "issues": [],
+  "updates": [],
+  "panels": []
+}

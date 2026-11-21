@@ -2,6 +2,7 @@
 const crypto = require('crypto');
 const { HttpError } = require('../lib/errors');
 const { z, text, id, username, parse } = require('../lib/validate');
+const { KEYS } = require('../lib/permissions');
 const { checkPasswordPolicy, generatePassword } = require('./auth');
 
 const cols = 'id,username,display_name,role,must_change_password,auth_provider,disabled,created_at,last_login_at';
@@ -58,6 +59,9 @@ module.exports = function userRoutes(api, ctx) {
     const b = parse(z.object({ display_name: text(80, 1).optional(), role: id.or(z.string().regex(/^[a-z]{3,20}$/)).optional(), disabled: z.boolean().optional() }).strict(), req.body);
     const cur = need(uid); mayManage(req, cur);
     if (b.role) { roleOk(b.role); mayAssign(req, b.role); }
+    // Moving someone out of a role that requires two-step sign-in is changing that policy for them: only a Leader/Admin may do it.
+    if (b.role && b.role !== cur.role && (roles.get(cur.role) || {}).require_mfa && !(roles.get(b.role) || {}).require_mfa && req.permissions.size < KEYS.length)
+      throw new HttpError(403, 'TOO_POWERFUL', 'Only a Leader/Admin can move someone out of a role that requires two-step sign-in.');
     const losesAdmin = cur.role === 'admin' && !cur.disabled && ((b.role && b.role !== 'admin') || b.disabled === true);
     if (losesAdmin && activeAdmins() <= 1) throw new HttpError(409, 'LAST_ADMIN', 'At least one active administrator is required.');
     db.transaction(() => {
@@ -130,6 +134,9 @@ module.exports = function userRoutes(api, ctx) {
       module: v => one('SELECT title FROM training_modules WHERE id=?', v), panel: v => one('SELECT title FROM photo_panels WHERE id=?', v), issue: v => one('SELECT title FROM issues WHERE id=?', v),
       file: v => one('SELECT original_name FROM files WHERE id=?', v), source_domain: v => v };
     const rows = db.prepare('SELECT * FROM audit_log WHERE id < ? ORDER BY id DESC LIMIT ?').all(before, limit);
-    res.json({ entries: rows.map(e => ({ ...e, target: e.entity && e.entity_id && nameOf[e.entity] ? nameOf[e.entity](e.entity_id) : null })), has_more: rows.length === limit });
+    // Scores, quiz results and trainer notes are private training data: callers who cannot view progress do not get them through the log either.
+    const scrub = e => { if (req.permissions.has('progress.view_all') || !/^(signoff|score|quiz)\./.test(e.action)) return e;
+      try { const d = JSON.parse(e.detail); for (const k of ['note', 'scores', 'quiz_pct', 'score']) delete d[k]; return { ...e, detail: JSON.stringify(d) }; } catch { return { ...e, detail: '{}' }; } };
+    res.json({ entries: rows.map(scrub).map(e => ({ ...e, target: e.entity && e.entity_id && nameOf[e.entity] ? nameOf[e.entity](e.entity_id) : null })), has_more: rows.length === limit });
   });
 };

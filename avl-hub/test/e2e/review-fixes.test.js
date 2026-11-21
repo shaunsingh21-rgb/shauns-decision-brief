@@ -192,3 +192,19 @@ test('the Admin screen on a phone: readable people cards, who is locked out, las
   const lockedRow = page.locator('table.cards').nth(1).locator('tr', { hasText: 'Account locked after failed sign-ins' }).first(); assert.match(await lockedRow.locator('td[data-label="What"]').innerText(), /Account locked after failed sign-ins — lockme/); await lockedRow.locator('summary').click(); await lockedRow.getByText('From address').waitFor();
   await ac.post('/api/users', { username: 'named.target', display_name: 'N', role: 'viewer' }); await page.reload(); await page.getByText(/Created an account — named\.target/).waitFor(); await context.close();
 });
+
+test('round 2: the sync chip is a named link; a role is never changed without OK; a rejected form names the field; sign-in pages have their own titles', async () => {
+  await h.makeUser('viewer', 'rolevictim'); const { page, context } = await open('boss');
+  assert.equal(await page.getByRole('link', { name: /changes saved|offline|waiting|saving/i }).count() > 0, true, 'the chip is a link with a name');
+  assert.equal(await page.locator('a[role=status]').count(), 0, 'no link carries role=status');
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Admin', exact: true }).click(); await page.getByLabel('Role for rolevictim').waitFor();
+  let asked = null; page.once('dialog', d => { asked = d.message(); d.dismiss(); });
+  await page.getByLabel('Role for rolevictim').selectOption({ label: 'Technician' }); await page.waitForTimeout(400);
+  assert.match(asked || '', /Change rolevictim's role/, 'asked first'); assert.equal(count("SELECT role r, COUNT(*) n FROM users WHERE username='rolevictim' AND role='viewer'"), 1, 'Cancel changes nothing');
+  assert.equal(await page.getByLabel('Role for rolevictim').inputValue(), 'viewer', 'the old role is shown again');
+  page.once('dialog', d => d.accept()); await page.getByLabel('Role for rolevictim').selectOption({ label: 'Technician' });
+  await page.waitForFunction(() => true); await new Promise(r => setTimeout(r, 600)); assert.equal(count("SELECT COUNT(*) n FROM users WHERE username='rolevictim' AND role='technician'"), 1, 'OK saves');
+  await page.getByRole('link', { name: 'Issues & lessons' }).click(); await page.getByText('Log an issue or lesson').click(); await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.getByText(/Please check: title/).waitFor(); await context.close();
+  const p2 = await (await browser.newContext()).newPage(); await p2.goto(h.base + '/'); await p2.getByLabel('Username').waitFor(); assert.match(await p2.title(), /Sign in/);
+});

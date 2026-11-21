@@ -13,7 +13,12 @@ export function toast(msg) {
   const t = h('button', { class: 'toast', type: 'button', 'aria-label': `${msg} (tap to dismiss)`, onclick: () => t.remove() }, msg); box.append(t); setTimeout(() => t.remove(), 8000);
 }
 export const navigate = hash => { if (location.hash === hash) route(); else location.hash = hash; };
-export const errMsg = e => (e && e.message) || 'Something went wrong.';
+// A rejected form says WHICH fields to look at, not just "Invalid input."
+export const errMsg = e => {
+  const d = e && e.data && Array.isArray(e.data.details) ? e.data.details : [];
+  if (e && e.code === 'VALIDATION' && d.length) { const names = [...new Set(d.map(x => String(x.path || '').split('.').pop().replace(/_/g, ' ')).filter(Boolean))]; if (names.length) return `Please check: ${names.join(', ')}.`; }
+  return (e && e.message) || 'Something went wrong.';
+};
 // Shown after a queueable change: tells the person it is safe even though it hasn't reached the server yet.
 // Returns true when the change was queued (so callers can skip their normal "Saved." message).
 export const noteQueued = r => { if (r && r.queued) { toast('Saved on this device. It will sync when you’re back online.'); return true; } return false; };
@@ -35,9 +40,10 @@ export async function signOut() {
 }
 
 function syncLine() {
-  const el = h('a', { href: '#/sync', class: 'syncline', role: 'status', 'aria-live': 'polite' });
-  unsubStatus?.(); unsubStatus = sync.subscribe(s => { el.textContent = sync.statusText(s); el.className = `syncline s-${sync.statusLevel(s)}`; });
-  return el;
+  // A link keeps its own role and name; a separate hidden live region announces changes (role=status on the link itself removed its name).
+  const el = h('a', { href: '#/sync', class: 'syncline' }), live = h('span', { class: 'vh', role: 'status', 'aria-live': 'polite' });
+  unsubStatus?.(); unsubStatus = sync.subscribe(s => { const t = sync.statusText(s); el.textContent = t; live.textContent = t; el.className = `syncline s-${sync.statusLevel(s)}`; });
+  return h('span', {}, el, live);
 }
 function shell() {
   const cur = location.hash.split('/')[1] || 'equipment';

@@ -10,6 +10,7 @@ const { createBackup, verifyBackup } = require('./lib/backup');
     const r = await createBackup({ dbPath: c.dbPath, uploadDir: c.uploadDir, backupDir: c.backupDir, keep });
     const v = verifyBackup(r.dir); if (!v.ok) throw new Error('Verification failed: ' + v.problems.join(' '));
     console.log(`OK  ${r.dir}  (${(r.manifest.db_bytes / 1024).toFixed(0)} KB database, ${r.manifest.file_count} uploaded files, ${r.manifest.active_admins} admin(s))` + (r.pruned.length ? `  — removed ${r.pruned.length} old backup(s)` : ''));
+    if (r.clockBehind) { console.error(`WARNING: the server clock looks WRONG. This backup is dated earlier than an existing one (${r.newestOther}). Nothing was deleted. Fix the server date/time (timedatectl), then check the backups list.`); process.exitCode = 4; }
     const copy = process.env.BACKUP_COPY_TO;
     if (copy) {
       try { fs.mkdirSync(copy, { recursive: true }); fs.cpSync(r.dir, path.join(copy, path.basename(r.dir)), { recursive: true }); console.log(`OK  copied to ${copy}`); }

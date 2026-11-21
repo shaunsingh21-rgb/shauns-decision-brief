@@ -150,7 +150,7 @@ test('UPGRADE: an existing install (before roles) keeps every account, session a
   old.prepare("INSERT INTO training_modules (id,title,level,created_by,updated_by,created_at,updated_at) VALUES ('m-1','SAMPLE m',1,'u-trainer','u-trainer',?,?)").run(now, now);
   old.prepare("INSERT INTO audit_log (ts,actor_id,actor_name,action) VALUES (?,?,?,?)").run(now, 'u-admin', 'user-u-admin', 'old.action');
   old.prepare("INSERT INTO signoffs VALUES ('so-1','u-tech','m-1','u-trainer',90,NULL,?)").run(now);
-  const applied = migrate(old); assert.deepEqual(applied, ['005_roles.sql', '006_mfa.sql', '007_signoff_history.sql']);
+  const applied = migrate(old); assert.deepEqual(applied, ['005_roles.sql', '006_mfa.sql', '007_signoff_history.sql', '008_perf_indexes.sql', '009_cleanup_replay.sql']);
   assert.deepEqual(old.prepare('SELECT id,role FROM users ORDER BY id').all(), [{ id: 'u-admin', role: 'admin' }, { id: 'u-tech', role: 'technician' }, { id: 'u-trainer', role: 'trainer' }, { id: 'u-view', role: 'viewer' }]);
   assert.equal(old.pragma('foreign_key_check').length, 0, 'no broken foreign keys'); assert.equal(old.pragma('foreign_keys', { simple: true }), 1, 'foreign keys back on');
   assert.equal(old.prepare('SELECT COUNT(*) n FROM sessions').get().n, 1); assert.equal(old.prepare('SELECT created_by FROM equipment').get().created_by, 'u-tech');

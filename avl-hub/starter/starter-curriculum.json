@@ -1,0 +1,1531 @@
+{
+  "format": "avl-hub-content",
+  "version": 1,
+  "exported_at": "2026-11-21T02:28:47.790Z",
+  "note": "SAMPLE starter curriculum. Generic practice only. Every module imports as Draft and must be reviewed by a trainer before approval.",
+  "source_domains": [],
+  "equipment": [],
+  "issues": [],
+  "updates": [],
+  "panels": [],
+  "modules": [
+    {
+      "id": "1597e922-5f75-418e-a135-e77f1d9b245b",
+      "title": "Working safely around AV gear",
+      "level": 1,
+      "summary": "SAMPLE – review before use. Why safety habits come first: cables, power, lifting and keeping walkways clear.",
+      "equipment_id": null,
+      "videos": [],
+      "skills": [
+        {
+          "id": "fe6bce8c-8d2c-48e0-a966-c0622790e4bb",
+          "name": "Routes or covers a cable so that it is not a trip hazard in a walkway"
+        },
+        {
+          "id": "3eeca783-b07f-4b1a-8d13-79bfcf113d3c",
+          "name": "Reports a damaged cable or plug to a trainer instead of using it"
+        },
+        {
+          "id": "0d58ae16-b313-4394-a054-e48fb37bb834",
+          "name": "Lifts and carries a heavy case using a safe technique or asks for help"
+        },
+        {
+          "id": "a9daa767-b593-4c30-aad7-9464b21d6d31",
+          "name": "Identifies where the nearest power isolation and first-aid point are in the room"
+        }
+      ],
+      "questions": [
+        {
+          "id": "f0fc0aa6-18d3-492a-bcc3-fd7464214e81",
+          "prompt": "A cable has to cross a walkway during an event. What is the best approach?",
+          "options": [
+            "Leave it loose so it is easy to move later",
+            "Tape one end only and hope people notice",
+            "Cover it with proper cable protection and mark it so people can see it",
+            "Run it across and ask people to step carefully"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "81cae568-d98c-4e01-9754-7ad39c116aee",
+          "prompt": "You notice a power lead with a cracked outer sleeve. What should you do?",
+          "options": [
+            "Wrap it with tape and keep using it",
+            "Take it out of use, label it as faulty and tell a trainer",
+            "Use it only for small items",
+            "Put it back in the box without saying anything"
+          ],
+          "correct_index": 1
+        },
+        {
+          "id": "6b0644d4-6ff4-4e94-af9a-7f105eb39244",
+          "prompt": "A case is too heavy to lift comfortably alone. What should you do?",
+          "options": [
+            "Lift it quickly to get it over with",
+            "Drag it along the floor",
+            "Ask for a second person or use a trolley",
+            "Lift it by the handle with a twisting motion"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "90d94af5-2a2f-42c9-8b35-bd3aa3ad2e69",
+          "prompt": "Why should you know where power isolation points are before an event?",
+          "options": [
+            "So you can reset the equipment during a show",
+            "So you can reduce the electricity bill",
+            "So you can borrow power for personal devices",
+            "So power can be switched off quickly in an emergency"
+          ],
+          "correct_index": 3
+        },
+        {
+          "id": "66aa8ff4-5f58-4ee5-b17c-e670e261e7a3",
+          "prompt": "Which is the safest way to unplug a mains lead?",
+          "options": [
+            "Pull on the cable",
+            "Twist the cable until it comes free",
+            "Hold the plug body and pull it out, not the cable",
+            "Use pliers to grip the plug"
+          ],
+          "correct_index": 2
+        }
+      ]
+    },
+    {
+      "id": "440a9d1c-b692-466a-82fb-802d5426883c",
+      "title": "Signal flow: source to speaker or screen",
+      "level": 1,
+      "summary": "SAMPLE – review before use. The idea that every signal travels from a source, through processing, to an output, and how to trace it.",
+      "equipment_id": null,
+      "videos": [],
+      "skills": [
+        {
+          "id": "59180bba-0e1a-4273-a456-78d75265409c",
+          "name": "Names the main stages a signal passes through in a simple audio system, in order"
+        },
+        {
+          "id": "bd8d3ada-3e43-4c7a-88ce-3ebab57b25f1",
+          "name": "Names the main stages a signal passes through in a simple video system, in order"
+        },
+        {
+          "id": "fef9f776-0efb-42c7-8f20-ec615c4f0737",
+          "name": "Traces a signal from a microphone to a loudspeaker by physically following the cables"
+        },
+        {
+          "id": "ac88d92c-c230-4263-80b0-14f3ed5c8ffb",
+          "name": "Explains in their own words why a fault can be anywhere along the chain"
+        }
+      ],
+      "questions": [
+        {
+          "id": "f34cf694-bf7b-4a1d-b26d-279e75c65c2c",
+          "prompt": "In a simple audio system, which order is correct?",
+          "options": [
+            "Loudspeaker, mixer, source, amplifier",
+            "Amplifier, source, loudspeaker, mixer",
+            "Source, mixer, amplifier, loudspeaker",
+            "Mixer, loudspeaker, amplifier, source"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "162c3815-edc8-407d-ba61-bbec192240a2",
+          "prompt": "What is the main benefit of understanding signal flow when something stops working?",
+          "options": [
+            "You can avoid ever having faults",
+            "You can skip testing before an event",
+            "You can replace all the equipment straight away",
+            "You can check one stage at a time instead of guessing"
+          ],
+          "correct_index": 3
+        },
+        {
+          "id": "d37fa21b-1d63-4637-9baa-c970d8f6e34b",
+          "prompt": "A microphone is a typical example of which part of the chain?",
+          "options": [
+            "An output",
+            "A power supply",
+            "A display",
+            "A source"
+          ],
+          "correct_index": 3
+        },
+        {
+          "id": "489752c4-30a9-4cf3-84cf-21412cffe82d",
+          "prompt": "A projector or screen is a typical example of which part of the chain?",
+          "options": [
+            "An output",
+            "A source",
+            "A microphone",
+            "A cable label"
+          ],
+          "correct_index": 0
+        },
+        {
+          "id": "06e7759c-86a4-48b7-a87d-27b86258ab47",
+          "prompt": "If there is no sound from one microphone but others work, where is it sensible to look first?",
+          "options": [
+            "At the loudspeakers used by every channel",
+            "At the power supply for the whole building",
+            "At the screen showing the slides",
+            "At the stages that only that microphone uses, such as its cable and channel"
+          ],
+          "correct_index": 3
+        }
+      ]
+    },
+    {
+      "id": "fab28ed5-fb4c-4db3-b20f-204dda34736d",
+      "title": "Labelling and cable handling",
+      "level": 1,
+      "summary": "SAMPLE – review before use. Keeping kit identifiable and tidy: labels, coiling, storage and why it saves time.",
+      "equipment_id": null,
+      "videos": [],
+      "skills": [
+        {
+          "id": "d0210292-315a-4aa1-a7fc-a1fe74468ba7",
+          "name": "Coils a cable using a consistent method that avoids twisting and kinks"
+        },
+        {
+          "id": "1e5bf08c-ae9f-4c7b-811f-de33497b3b38",
+          "name": "Applies a clear label to a cable or case following the team convention"
+        },
+        {
+          "id": "643f2b56-8910-4f44-8a41-0766da3aa1a4",
+          "name": "Returns equipment to its labelled storage place after use"
+        },
+        {
+          "id": "9e90c689-c950-4108-9c3c-e19777d22623",
+          "name": "Checks a cable visually for damage before connecting it"
+        }
+      ],
+      "questions": [
+        {
+          "id": "0b868a7c-c619-44b0-99c4-fb195db4d23a",
+          "prompt": "Why do teams label cables and cases?",
+          "options": [
+            "So items can be identified quickly and returned to the right place",
+            "To make the kit look more expensive",
+            "To stop people borrowing kit",
+            "Labels are only needed for new kit"
+          ],
+          "correct_index": 0
+        },
+        {
+          "id": "a6d9ae41-e4c2-4613-9b76-fea151a640c9",
+          "prompt": "What is a good reason to coil cables the same way every time?",
+          "options": [
+            "It prevents kinks and makes them quick to deploy",
+            "It makes the cable longer",
+            "It improves the signal on every cable",
+            "It is only about appearance"
+          ],
+          "correct_index": 0
+        },
+        {
+          "id": "2039a9e5-0ded-443c-a24f-9c0b92c0dfe4",
+          "prompt": "What should you do before plugging in a cable?",
+          "options": [
+            "Nothing, cables never fail",
+            "Bend it sharply to test it",
+            "Plug in both ends before looking",
+            "Look along it and at both connectors for visible damage"
+          ],
+          "correct_index": 3
+        },
+        {
+          "id": "f04b639f-ec3b-435e-9d12-ad0119892a74",
+          "prompt": "After an event you find a case with no label. What is the best action?",
+          "options": [
+            "Ask a trainer and label it following the team convention",
+            "Leave it where it is",
+            "Put it with any other case",
+            "Take it home for safekeeping"
+          ],
+          "correct_index": 0
+        },
+        {
+          "id": "6a005ee4-a8e4-4072-bfdd-6ea43803cee9",
+          "prompt": "A cable has been left in a tight knot. What is the best way to deal with it?",
+          "options": [
+            "Pull hard until it comes apart",
+            "Gently undo the knot, then coil it properly",
+            "Cut the knot out",
+            "Leave it for someone else"
+          ],
+          "correct_index": 1
+        }
+      ]
+    },
+    {
+      "id": "7d973d8e-dc95-470b-89e5-70b1786121a3",
+      "title": "Communicating as part of a crew",
+      "level": 1,
+      "summary": "SAMPLE – review before use. Clear, calm communication during setup and events: asking, confirming and reporting.",
+      "equipment_id": null,
+      "videos": [],
+      "skills": [
+        {
+          "id": "05ab0977-ada5-430a-a180-91eead2e5557",
+          "name": "Repeats back an instruction to confirm it was understood"
+        },
+        {
+          "id": "13977afe-18f7-4499-a143-e9799996f378",
+          "name": "Uses agreed terms for locations and equipment when speaking to the crew"
+        },
+        {
+          "id": "749a1346-11b8-4993-aaf0-b7ecd9785a37",
+          "name": "Tells the team lead promptly when something is not working"
+        },
+        {
+          "id": "d5fbf2cc-7a0d-49d6-847f-30f9fa77015a",
+          "name": "Asks a question when unsure instead of guessing"
+        }
+      ],
+      "questions": [
+        {
+          "id": "59890214-14d7-4ae6-9ceb-184be15042e9",
+          "prompt": "A team lead gives you an instruction you do not fully understand. What should you do?",
+          "options": [
+            "Ask for it to be explained again before acting",
+            "Guess and hope it is right",
+            "Wait silently until someone notices",
+            "Do something similar that you already know"
+          ],
+          "correct_index": 0
+        },
+        {
+          "id": "3db72bba-4960-4b61-9c79-f52d4ce20257",
+          "prompt": "Why is repeating back an instruction useful?",
+          "options": [
+            "It confirms that both people understood the same thing",
+            "It slows people down on purpose",
+            "It shows you are more senior",
+            "It is only needed for written instructions"
+          ],
+          "correct_index": 0
+        },
+        {
+          "id": "67728fcf-fdb8-4b3e-aa7b-5bb7d2461a65",
+          "prompt": "You spot a problem during setup. What is the best action?",
+          "options": [
+            "Fix it quietly and say nothing",
+            "Wait until the end of the event",
+            "Tell the team lead clearly and promptly",
+            "Mention it only if asked"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "52698f94-6d32-45ed-bfcc-4f27f8039cfb",
+          "prompt": "Why do crews agree common names for places and equipment?",
+          "options": [
+            "To keep newcomers confused",
+            "To make radio chatter longer",
+            "To avoid writing anything down",
+            "So everyone means the same thing when they speak"
+          ],
+          "correct_index": 3
+        },
+        {
+          "id": "6a1bb1c1-3c61-4556-89cd-434a6ba18da2",
+          "prompt": "During a live event, which style of speech is most helpful?",
+          "options": [
+            "Long and detailed explanations",
+            "Loud and urgent for every issue",
+            "Silent unless spoken to",
+            "Short, calm and specific"
+          ],
+          "correct_index": 3
+        }
+      ]
+    },
+    {
+      "id": "0822aa64-4712-42f3-bcd8-416a2fb7be64",
+      "title": "Load-in, setup and strike",
+      "level": 2,
+      "summary": "SAMPLE – review before use. The sequence of setting up before an event and packing away after it, with checklists.",
+      "equipment_id": null,
+      "videos": [],
+      "skills": [
+        {
+          "id": "a689aad5-b4fb-486a-addc-57e5754adc47",
+          "name": "Follows a setup checklist in order and ticks items as completed"
+        },
+        {
+          "id": "49084293-d1dd-4bcb-b38e-95e93ad133a4",
+          "name": "Positions equipment according to the plan or lead instruction"
+        },
+        {
+          "id": "5b174f0a-ab3b-49ae-8336-3f32f8eb5828",
+          "name": "Runs and secures cables so they are safe and tidy"
+        },
+        {
+          "id": "e503dfbb-a6fd-48a7-ac78-618acf5a1460",
+          "name": "Carries out a strike so that nothing is left behind and everything is stored"
+        },
+        {
+          "id": "bf497bbf-f3d1-4704-b8d3-7e7c8a228f39",
+          "name": "Reports missing or damaged items at the end of strike"
+        }
+      ],
+      "questions": [
+        {
+          "id": "7362b52c-9cbb-4f53-b5f8-74723b404292",
+          "prompt": "Why use a checklist for setup?",
+          "options": [
+            "It replaces the need to understand the system",
+            "It is only for beginners",
+            "It reduces the chance of missing a step",
+            "It makes setup take longer"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "ee3750dc-3e59-4134-85e6-115098d3b76d",
+          "prompt": "What is a sensible order for strike?",
+          "options": [
+            "Power down, disconnect, coil and pack, then check the room",
+            "Pack the cases first, then switch off",
+            "Leave the cables out until the next day",
+            "Pack only the large items"
+          ],
+          "correct_index": 0
+        },
+        {
+          "id": "1ef17fbd-6f51-44bf-8f79-630320c5cbe3",
+          "prompt": "At the end of strike you notice a cable is missing. What should you do?",
+          "options": [
+            "Say nothing",
+            "Replace it with a personal cable",
+            "Tell the team lead so it can be found or recorded",
+            "Assume someone took it"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "6c3b52a0-44b5-4fb8-a09d-4a623cdf6326",
+          "prompt": "Why should equipment be powered down before disconnecting it?",
+          "options": [
+            "To save time later",
+            "To protect people and the equipment from avoidable faults",
+            "Because the cables are easier to coil",
+            "It makes no difference"
+          ],
+          "correct_index": 1
+        },
+        {
+          "id": "fb55f1e2-a7dc-4f64-8fc0-7b5961a0254c",
+          "prompt": "What does a good last check of the room involve?",
+          "options": [
+            "Looking for left-behind items, tape, waste and open cases",
+            "Checking only the stage area",
+            "Checking only that the doors are open",
+            "Nothing, the checklist is enough"
+          ],
+          "correct_index": 0
+        }
+      ]
+    },
+    {
+      "id": "c7d658de-1337-41b8-83e2-0b71d1a22740",
+      "title": "Audio basics: gain and monitoring",
+      "level": 2,
+      "summary": "SAMPLE – review before use. Setting a healthy input level, listening in headphones and keeping the mix clean.",
+      "equipment_id": null,
+      "videos": [],
+      "skills": [
+        {
+          "id": "765f6118-c39b-41ab-b5ca-44d058248c36",
+          "name": "Sets the input gain of a channel so the signal is strong without distorting"
+        },
+        {
+          "id": "bde6ec49-4fa4-47ab-b7b7-046bc33f3414",
+          "name": "Uses headphones to check a source before sending it to the room"
+        },
+        {
+          "id": "7cfacd9c-0811-45d7-bb69-3350ee5468b1",
+          "name": "Mutes unused channels"
+        },
+        {
+          "id": "fad4f267-c995-4d6a-992e-15d1aab7969f",
+          "name": "Explains the difference between gain and fader level in their own words"
+        },
+        {
+          "id": "0b716394-2ce2-4740-ba8d-61d3815fbc7c",
+          "name": "Recognises distortion by ear and by the meters and reduces the level"
+        }
+      ],
+      "questions": [
+        {
+          "id": "e288fbc8-aa1f-4063-99b8-3738122b51e2",
+          "prompt": "What is the purpose of setting input gain?",
+          "options": [
+            "To make the channel permanently louder than the others",
+            "To add reverb to the sound",
+            "To change the colour of the sound",
+            "To give the mixer a healthy signal level without distortion"
+          ],
+          "correct_index": 3
+        },
+        {
+          "id": "b2952819-d819-424c-8210-81172be46d4c",
+          "prompt": "What should you do if a channel meter is constantly in the red?",
+          "options": [
+            "Reduce the gain until the signal is no longer clipping",
+            "Turn the master fader up",
+            "Ignore it if the sound seems fine",
+            "Turn the gain up further"
+          ],
+          "correct_index": 0
+        },
+        {
+          "id": "3edaf569-6203-4238-a929-7855e26a6cc8",
+          "prompt": "Why mute channels that are not in use?",
+          "options": [
+            "It saves the microphones from wear",
+            "It makes the mixer start faster",
+            "Muted channels cannot be heard even after unmuting",
+            "It reduces noise and the risk of unwanted sound"
+          ],
+          "correct_index": 3
+        },
+        {
+          "id": "f4ca9c7d-1e4d-4a6b-8b9a-62b1e5d4dfb5",
+          "prompt": "Which best describes the difference between gain and the fader?",
+          "options": [
+            "Gain sets the level coming in; the fader sets the level going on to the mix",
+            "They are the same control with different names",
+            "Gain only affects video",
+            "The fader changes the cable type"
+          ],
+          "correct_index": 0
+        },
+        {
+          "id": "0ed3930d-bc46-4adc-ad02-cdb18b151279",
+          "prompt": "Why use headphones when checking a source?",
+          "options": [
+            "To hear it before it reaches the audience",
+            "Because loudspeakers do not work",
+            "To block the room noise forever",
+            "It is required by law for every source"
+          ],
+          "correct_index": 0
+        }
+      ]
+    },
+    {
+      "id": "d303b0e5-ce24-46d2-aaff-872967483b32",
+      "title": "Video basics: sources, displays and matching",
+      "level": 2,
+      "summary": "SAMPLE – review before use. How computers and cameras connect to displays, and why the right settings matter.",
+      "equipment_id": null,
+      "videos": [],
+      "skills": [
+        {
+          "id": "f8b401f2-2f5a-44fb-99a0-d443641b8024",
+          "name": "Connects a laptop to a display using the correct cable and adapter"
+        },
+        {
+          "id": "46f3e2d9-de46-437a-9d20-1b5d5b65f091",
+          "name": "Confirms that the display is on the correct input"
+        },
+        {
+          "id": "8eef398e-b03e-444a-961e-0f0c2f0fd4b3",
+          "name": "Adjusts the output settings so the image fills the screen correctly"
+        },
+        {
+          "id": "8c70eacf-399e-4594-8758-786543ff0c40",
+          "name": "Checks that a presentation appears correctly before the audience arrives"
+        }
+      ],
+      "questions": [
+        {
+          "id": "59ad5793-d7e5-42d6-a9cb-818be2d1635b",
+          "prompt": "A display shows no picture. What is a sensible first check?",
+          "options": [
+            "Replace the display",
+            "Restart the building power",
+            "That it is switched on and set to the correct input",
+            "Reinstall the presentation software"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "6d10bf69-0e4f-4475-b6a0-db51a6ed64cc",
+          "prompt": "Why should you test a presentation before the audience arrives?",
+          "options": [
+            "To avoid needing a source",
+            "Because audiences prefer waiting",
+            "To find and fix problems while there is time",
+            "Testing is only needed for audio"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "6dcf1518-76bf-4ac2-be40-0f280d5332a5",
+          "prompt": "An image looks stretched. What is the most likely area to check?",
+          "options": [
+            "The microphone gain",
+            "The cable label",
+            "The power lead",
+            "The output and display aspect settings"
+          ],
+          "correct_index": 3
+        },
+        {
+          "id": "87fe78a8-20eb-4ad3-b60a-2e39eb3a0d61",
+          "prompt": "What is an adapter used for in a video connection?",
+          "options": [
+            "To make the picture sharper",
+            "To increase the screen size",
+            "To supply power to the room",
+            "To connect two different types of connector"
+          ],
+          "correct_index": 3
+        },
+        {
+          "id": "be390782-e4bd-42dc-b872-8f7d1a0e341e",
+          "prompt": "A laptop does not send a picture to the display. What should you check on the laptop?",
+          "options": [
+            "Whether the microphone is muted",
+            "Whether the keyboard has a label",
+            "Whether the room is dark",
+            "Whether it is set to use the external display"
+          ],
+          "correct_index": 3
+        }
+      ]
+    },
+    {
+      "id": "67d7682a-108a-44ac-a4ac-7fc69b494220",
+      "title": "Batteries, wireless and spares",
+      "level": 2,
+      "summary": "SAMPLE – review before use. Looking after battery powered items and having what you need on hand.",
+      "equipment_id": null,
+      "videos": [],
+      "skills": [
+        {
+          "id": "05bab368-45ae-4c77-80d7-b81a5cc7208d",
+          "name": "Checks the battery level of a wireless item before use"
+        },
+        {
+          "id": "82498905-a51d-4af0-ad05-71d35df674c1",
+          "name": "Replaces or charges batteries following the team routine"
+        },
+        {
+          "id": "a8b930f5-e70a-494a-930e-a212f09b87a8",
+          "name": "Stores batteries safely and separate from damaged ones"
+        },
+        {
+          "id": "17788f7f-c309-4900-b15e-6eb860c871d7",
+          "name": "Keeps a basic spares kit stocked and tells the lead when something runs low"
+        }
+      ],
+      "questions": [
+        {
+          "id": "174e233c-4cb3-4f9e-884c-ad50c898083d",
+          "prompt": "When should battery levels be checked?",
+          "options": [
+            "Only after a failure",
+            "Never, they are always full",
+            "Before the event and at agreed points during it",
+            "Only at the end of the year"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "99fb5a02-2a5c-4ead-89ff-403ce06aafd4",
+          "prompt": "What should you do with a battery that looks swollen or damaged?",
+          "options": [
+            "Stop using it, keep it apart and tell a trainer",
+            "Put it back in the box",
+            "Use it for a short time only",
+            "Throw it in a general bin without telling anyone"
+          ],
+          "correct_index": 0
+        },
+        {
+          "id": "a2160f4e-0cf7-4969-a8ea-bd22b2c07bc0",
+          "prompt": "Why keep a spares kit?",
+          "options": [
+            "To store personal items",
+            "So common problems can be fixed quickly",
+            "To avoid doing checks",
+            "Spares are never needed"
+          ],
+          "correct_index": 1
+        },
+        {
+          "id": "e2425af2-ad93-408f-96bd-298e3ec5f3a1",
+          "prompt": "What is the best way to know when spares are running low?",
+          "options": [
+            "Check the kit regularly and report shortages",
+            "Wait until a spare is needed",
+            "Ask each guest",
+            "Assume someone else will check"
+          ],
+          "correct_index": 0
+        },
+        {
+          "id": "4b2af199-7229-48ad-bdb2-d8f3480dbcb4",
+          "prompt": "Why should used and fresh batteries be kept separate?",
+          "options": [
+            "They do not fit in the same box",
+            "Used batteries are more valuable",
+            "So you do not accidentally put weak ones into equipment",
+            "There is no reason"
+          ],
+          "correct_index": 2
+        }
+      ]
+    },
+    {
+      "id": "36c06aad-6613-4532-b301-4dc2e7f88c0e",
+      "title": "Running audio for a simple event",
+      "level": 3,
+      "summary": "SAMPLE – review before use. Operating a small mix under supervision from soundcheck to the end of the event.",
+      "equipment_id": null,
+      "videos": [],
+      "skills": [
+        {
+          "id": "5995d3fd-62b6-47cc-b9cf-7558c58bc81b",
+          "name": "Carries out a line check of each source before the event"
+        },
+        {
+          "id": "3185d5ac-7c8b-4e92-825d-21d815e22972",
+          "name": "Sets an initial balance so speech is clear and comfortable"
+        },
+        {
+          "id": "ed859f53-71a8-48e2-865f-0fe6e38c9ef4",
+          "name": "Adjusts levels during the event in response to changes"
+        },
+        {
+          "id": "41d44a89-1b58-43f5-be16-19175b700f0e",
+          "name": "Recovers calmly from a problem and tells the supervisor what happened"
+        },
+        {
+          "id": "001f52c0-be5e-4693-8165-adc393df0b5c",
+          "name": "Brings the system down at the end in the agreed order"
+        }
+      ],
+      "questions": [
+        {
+          "id": "4c962513-37cd-4147-bebb-a1265d61bc7e",
+          "prompt": "What is the aim of a line check?",
+          "options": [
+            "To reduce the number of channels",
+            "To confirm that each source reaches the mix correctly",
+            "To tune the room",
+            "To test the loudspeaker paint"
+          ],
+          "correct_index": 1
+        },
+        {
+          "id": "5048a568-1a25-480f-b68d-a37aaf6e4747",
+          "prompt": "During the event a speaker moves further from the microphone and gets quieter. What is a sensible response?",
+          "options": [
+            "Mute the channel",
+            "Raise the level smoothly and tell the speaker if needed",
+            "Leave it unchanged",
+            "Turn all other channels down"
+          ],
+          "correct_index": 1
+        },
+        {
+          "id": "7298208d-08d2-42de-9722-77a4839f84eb",
+          "prompt": "A loud noise suddenly appears. What is the best first action?",
+          "options": [
+            "Wait to see if it stops",
+            "Turn the master fader to maximum",
+            "Unplug the whole system",
+            "Quickly identify the source and reduce or mute it"
+          ],
+          "correct_index": 3
+        },
+        {
+          "id": "6e16e7b8-2215-4e1d-8658-d058f3344e4b",
+          "prompt": "Why tell your supervisor about a problem even after you fixed it?",
+          "options": [
+            "To blame someone",
+            "So the team can learn and prevent it happening again",
+            "It is not necessary",
+            "So you can finish early"
+          ],
+          "correct_index": 1
+        },
+        {
+          "id": "4ee96b2a-e2f5-46d0-9d66-3df2c3761dc9",
+          "prompt": "What does a good balance for speech aim for?",
+          "options": [
+            "As loud as possible",
+            "Quiet enough that nobody can hear",
+            "Heavy on bass sounds",
+            "Clear and easy to understand at a comfortable level"
+          ],
+          "correct_index": 3
+        }
+      ]
+    },
+    {
+      "id": "deccbc48-9b68-4bfe-aae3-1665d20ee89d",
+      "title": "Camera and vision mixing basics",
+      "level": 3,
+      "summary": "SAMPLE – review before use. Framing, switching and handing over shots calmly for a simple live event.",
+      "equipment_id": null,
+      "videos": [],
+      "skills": [
+        {
+          "id": "2cc20c3d-032a-4195-9264-92574beccc42",
+          "name": "Frames a shot of a speaker that is steady and appropriate"
+        },
+        {
+          "id": "052d1772-08d5-4338-ad09-ba72ef9fe029",
+          "name": "Checks focus and exposure before the event"
+        },
+        {
+          "id": "155066bc-9a16-49df-9b20-1605c2caf4b3",
+          "name": "Switches between sources at sensible moments with a clean transition"
+        },
+        {
+          "id": "f680fef4-6f98-4b82-93c3-32a472f3bdde",
+          "name": "Follows the director or lead instruction using agreed calls"
+        }
+      ],
+      "questions": [
+        {
+          "id": "051c0ffe-da49-44cb-a3aa-2f548e26472f",
+          "prompt": "Why check focus and exposure before the event?",
+          "options": [
+            "To waste time",
+            "To keep the camera warm",
+            "So the picture is usable from the start",
+            "Because audiences do not notice"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "74ef7c87-6a15-43a3-aa1b-3cf12caaebc7",
+          "prompt": "What is a good habit when switching shots?",
+          "options": [
+            "Switch to a ready, stable shot without hurried changes",
+            "Switch constantly to keep it interesting",
+            "Switch to a shot while it is still being adjusted",
+            "Never switch"
+          ],
+          "correct_index": 0
+        },
+        {
+          "id": "c4a7a326-30ec-4dec-8429-f72d4d32e915",
+          "prompt": "A camera operator is asked to \"hold\" a shot. What does this most likely mean?",
+          "options": [
+            "Move to a new subject",
+            "Keep the framing steady until told otherwise",
+            "Turn the camera off",
+            "Zoom out quickly"
+          ],
+          "correct_index": 1
+        },
+        {
+          "id": "1cfca139-2ef5-4cfb-a9e5-6fd6307208ed",
+          "prompt": "Why use agreed calls between operators?",
+          "options": [
+            "To make the event feel formal",
+            "To avoid talking",
+            "So everyone understands instructions the first time",
+            "So only one person can speak"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "8f4150ea-6086-4de8-b34a-a3a189819be6",
+          "prompt": "A shot is slightly tilted. What should the operator do?",
+          "options": [
+            "Leave it, it is fine",
+            "Level the camera and tell the lead if needed",
+            "Zoom in to hide it",
+            "Switch the shot on air"
+          ],
+          "correct_index": 1
+        }
+      ]
+    },
+    {
+      "id": "69985fdb-1e24-474a-b825-fd3acb0ddf08",
+      "title": "Presentation and playback operation",
+      "level": 3,
+      "summary": "SAMPLE – review before use. Running slides, video and music cues on time with backups ready.",
+      "equipment_id": null,
+      "videos": [],
+      "skills": [
+        {
+          "id": "b0fc95ff-35ef-4776-b084-0815c0bd4014",
+          "name": "Loads the presentation or media and confirms it plays correctly before the event"
+        },
+        {
+          "id": "c84f623f-caa0-474c-8915-c88d69505a85",
+          "name": "Follows a cue sheet and plays items on cue"
+        },
+        {
+          "id": "e623d272-50a9-4cc7-b85d-3ca6d0e14e62",
+          "name": "Keeps a backup copy of the media accessible"
+        },
+        {
+          "id": "1a2b9f48-5de7-4a60-a2aa-70f3df6b56c5",
+          "name": "Communicates with the speaker about how slides will be controlled"
+        }
+      ],
+      "questions": [
+        {
+          "id": "1ee0ed59-f87d-431f-a34f-e3deeaa44bbe",
+          "prompt": "Why keep a backup copy of media?",
+          "options": [
+            "Because backups make the file bigger",
+            "So you can recover quickly if the main copy fails",
+            "To avoid testing",
+            "Backups are never useful"
+          ],
+          "correct_index": 1
+        },
+        {
+          "id": "b6e79b9b-82ab-4359-a79a-b5a90a3f9926",
+          "prompt": "What is the purpose of a cue sheet?",
+          "options": [
+            "To decorate the control desk",
+            "To replace the crew",
+            "To record the budget",
+            "To list what happens and when so everyone follows the same plan"
+          ],
+          "correct_index": 3
+        },
+        {
+          "id": "0b9c3d9d-c9a5-479f-92b9-daba59c9fef9",
+          "prompt": "Before the event you load a video and it does not play. What should you do?",
+          "options": [
+            "Wait to see if it plays during the event",
+            "Delete it",
+            "Fix or replace it before the event, and tell the lead",
+            "Hide the problem"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "9f3d8c48-04d2-40b2-aec3-dc1e1e07be9d",
+          "prompt": "A speaker asks to change slides themselves. What is a good response?",
+          "options": [
+            "Refuse without discussion",
+            "Agree how it will work and confirm it before the event",
+            "Let them guess",
+            "Take away their notes"
+          ],
+          "correct_index": 1
+        },
+        {
+          "id": "9be80de8-ddf1-4126-9a63-ce584e1438a4",
+          "prompt": "Why check the media in the actual room setup?",
+          "options": [
+            "They never differ",
+            "Only to save electricity",
+            "Conditions in the room can differ from your desk",
+            "It is just a formality"
+          ],
+          "correct_index": 2
+        }
+      ]
+    },
+    {
+      "id": "42d57f7b-c64d-4238-b708-97dda0b94c3f",
+      "title": "A method for troubleshooting",
+      "level": 3,
+      "summary": "SAMPLE – review before use. A calm, repeatable way to find faults: observe, isolate, test one change at a time and record.",
+      "equipment_id": null,
+      "videos": [],
+      "skills": [
+        {
+          "id": "e0419260-9858-4f59-bb1a-9ad1c2bbd944",
+          "name": "States the symptom clearly before changing anything"
+        },
+        {
+          "id": "75839007-bf13-4700-aeff-cc650cfa4603",
+          "name": "Narrows the problem to one part of the signal chain"
+        },
+        {
+          "id": "9dd0e3ea-e843-408b-aa03-0a0bb9881ead",
+          "name": "Changes one thing at a time and checks the result"
+        },
+        {
+          "id": "72648712-f5d2-4511-ba48-7aedde22cec6",
+          "name": "Restores anything they changed that did not help"
+        },
+        {
+          "id": "fa48e73f-5057-4da9-bba0-14d5ca4c6d07",
+          "name": "Records what was found and fixed"
+        }
+      ],
+      "questions": [
+        {
+          "id": "54b4fd77-2f6b-48f5-afc7-8ea710c32d9d",
+          "prompt": "What is the best first step when something stops working?",
+          "options": [
+            "Replace parts at random",
+            "Restart everything immediately",
+            "Clearly describe what is and is not working",
+            "Blame the last person who used it"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "f1b3488a-9cf8-47d3-8877-378cd8afe607",
+          "prompt": "Why change only one thing at a time?",
+          "options": [
+            "It looks tidier",
+            "So you know which change made the difference",
+            "It is quicker to do ten things at once",
+            "There is no reason"
+          ],
+          "correct_index": 1
+        },
+        {
+          "id": "e4fdabb9-2f41-403c-bd68-9c659a39cd8c",
+          "prompt": "You swap a cable and the fault is still there. What should you do?",
+          "options": [
+            "Leave both cables in place",
+            "Throw away the cable",
+            "Put the original cable back and test the next stage",
+            "Stop testing"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "824d92c1-c239-4417-bc37-209affd074f1",
+          "prompt": "What does it mean to isolate a fault?",
+          "options": [
+            "Narrow it to the smallest part of the system that can explain it",
+            "Turn everything off and leave",
+            "Remove all the equipment",
+            "Ignore it"
+          ],
+          "correct_index": 0
+        },
+        {
+          "id": "53198f30-1d77-490d-805f-88b4ac79c737",
+          "prompt": "Why record what you found and fixed?",
+          "options": [
+            "So others can fix it faster next time",
+            "To make the log longer",
+            "Only for managers",
+            "There is no reason"
+          ],
+          "correct_index": 0
+        }
+      ]
+    },
+    {
+      "id": "95a39c5d-86f4-4ddf-b480-97dd4697a454",
+      "title": "Pre-event checks and show readiness",
+      "level": 4,
+      "summary": "SAMPLE – review before use. Preparing a complete system so that it is ready before people arrive.",
+      "equipment_id": null,
+      "videos": [],
+      "skills": [
+        {
+          "id": "43da7101-9c15-497b-8044-650a918ca0a2",
+          "name": "Completes a full pre-event check against the checklist"
+        },
+        {
+          "id": "cf09d795-9b48-4897-9c17-6c9ae890dd1c",
+          "name": "Tests every signal path that will be used, including backups"
+        },
+        {
+          "id": "93c0d2e8-2793-4269-b83e-f0713151d42d",
+          "name": "Confirms with the event owner what is needed and when"
+        },
+        {
+          "id": "244c5981-2a6d-4974-bd3a-e67d0e5f0ef9",
+          "name": "Identifies and resolves risks before the doors open"
+        }
+      ],
+      "questions": [
+        {
+          "id": "45f04f42-6176-4219-ab01-248d3c396e34",
+          "prompt": "What is the main purpose of a pre-event check?",
+          "options": [
+            "To fill the time before the event",
+            "To train guests",
+            "To find problems before the audience is present",
+            "To satisfy a rule only"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "52fd6260-398e-47f8-8fb3-c0742c1068d5",
+          "prompt": "Why test backup paths as well as the main ones?",
+          "options": [
+            "Backups never need testing",
+            "It is quicker not to",
+            "A backup that has never been tested may not work when needed",
+            "Only the main path matters"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "5a7095f7-a9d2-4a2a-a3d5-28e07eb3f471",
+          "prompt": "What is a good reason to talk to the event owner before setup?",
+          "options": [
+            "To avoid doing setup",
+            "To make sure you prepare what they actually need",
+            "To change the building rules",
+            "There is no reason"
+          ],
+          "correct_index": 1
+        },
+        {
+          "id": "dc40a215-67c3-4f1b-b646-599a248f6d1d",
+          "prompt": "You find a risk that cannot be fixed before the event. What should you do?",
+          "options": [
+            "Hope it will be fine",
+            "Tell the lead and agree a plan or workaround",
+            "Hide it",
+            "Remove it from the checklist"
+          ],
+          "correct_index": 1
+        },
+        {
+          "id": "0b40c160-ea44-4972-bc30-c57961df969e",
+          "prompt": "When should the final check be completed?",
+          "options": [
+            "Just as people arrive",
+            "Early enough to leave time to fix anything found",
+            "After the event",
+            "Never"
+          ],
+          "correct_index": 1
+        }
+      ]
+    },
+    {
+      "id": "76046391-0ace-46ee-ab6d-f36453e3e544",
+      "title": "Fault-finding under time pressure",
+      "level": 4,
+      "summary": "SAMPLE – review before use. Applying a troubleshooting method calmly when the event is live.",
+      "equipment_id": null,
+      "videos": [],
+      "skills": [
+        {
+          "id": "9f27bf5d-e628-4979-a0c2-a5d011809908",
+          "name": "Stays calm and communicates status to the lead during a fault"
+        },
+        {
+          "id": "961da5b7-a7b0-4ceb-949d-2e1288d080b3",
+          "name": "Prioritises quick checks that are most likely to help first"
+        },
+        {
+          "id": "59313e4d-d9bf-4953-ad75-18c52f98a9e3",
+          "name": "Switches to a prepared workaround to protect the audience experience"
+        },
+        {
+          "id": "262c2d88-ccf8-43e3-8b19-988c0d704b79",
+          "name": "Documents the fault after the event and follows it up"
+        }
+      ],
+      "questions": [
+        {
+          "id": "e2878235-d9e2-49ea-92f3-9aeefcfdee76",
+          "prompt": "During a live fault, what should be your priority?",
+          "options": [
+            "Protect what the audience sees and hears while you work out the cause",
+            "Find who is to blame",
+            "Rebuild the whole system",
+            "Switch everything off"
+          ],
+          "correct_index": 0
+        },
+        {
+          "id": "53f00a19-e309-4f66-bc65-4982b6c5b5db",
+          "prompt": "Why start with the quick, likely checks?",
+          "options": [
+            "They are the most interesting",
+            "They avoid communication",
+            "They are required by law",
+            "They resolve many faults with the least disruption"
+          ],
+          "correct_index": 3
+        },
+        {
+          "id": "c3d17e06-2ac6-4706-8e62-7fe6f5333268",
+          "prompt": "What does a workaround do?",
+          "options": [
+            "Keeps the event going while the real cause is fixed later",
+            "Fixes the root cause permanently",
+            "Replaces the event plan",
+            "Removes the need for a record"
+          ],
+          "correct_index": 0
+        },
+        {
+          "id": "badeba26-e1a2-4a4e-bd7a-6652a841b0fa",
+          "prompt": "Why tell the lead what is happening during a fault?",
+          "options": [
+            "So decisions can be made with the whole picture",
+            "So someone else can take over the blame",
+            "It is not helpful",
+            "To fill silence"
+          ],
+          "correct_index": 0
+        },
+        {
+          "id": "5c3ec302-8938-46e2-acb5-143385e22d6f",
+          "prompt": "After the event the fault is still unexplained. What should you do?",
+          "options": [
+            "Forget it",
+            "Wait for it to happen again",
+            "Tell nobody",
+            "Record it and follow it up so it does not repeat"
+          ],
+          "correct_index": 3
+        }
+      ]
+    },
+    {
+      "id": "75de0ebe-81b1-43eb-b318-2a437d421438",
+      "title": "Records and handover",
+      "level": 4,
+      "summary": "SAMPLE – review before use. Leaving clear notes so the next person can pick up where you left off.",
+      "equipment_id": null,
+      "videos": [],
+      "skills": [
+        {
+          "id": "0011feaf-e6c9-4af7-970d-9f8dc9e2cb54",
+          "name": "Writes an event report that states what happened and what to follow up"
+        },
+        {
+          "id": "807cca6e-a2af-41d5-8e35-74ac5d2b3f33",
+          "name": "Records equipment issues with enough detail to act on"
+        },
+        {
+          "id": "20f32ba7-ef42-445e-a55e-b3ae3ecac274",
+          "name": "Hands over to the next shift with a clear verbal and written summary"
+        },
+        {
+          "id": "7a445fe6-7891-45b9-8cf1-fc22d87b5f0a",
+          "name": "Keeps labels and records up to date after changes"
+        }
+      ],
+      "questions": [
+        {
+          "id": "95af35c7-eea1-4d6e-8651-fc888645ca7d",
+          "prompt": "What makes a good issue report?",
+          "options": [
+            "One word such as \"broken\"",
+            "Only the name of the person who found it",
+            "Clear symptoms, where and when it happened, and what was tried",
+            "A long story with no details"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "b3b99761-a2c9-4a6b-b11b-211ab63e3664",
+          "prompt": "Why hand over in writing as well as verbally?",
+          "options": [
+            "Because speaking is not allowed",
+            "To make the job longer",
+            "So nothing is lost if someone forgets",
+            "It is optional and rarely helpful"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "34ae893a-70d9-4466-b1c6-691a76db210e",
+          "prompt": "You change how a system is connected. What should you also do?",
+          "options": [
+            "Nothing, people will work it out",
+            "Delete the old records",
+            "Tell only your friends",
+            "Update labels and records to match"
+          ],
+          "correct_index": 3
+        },
+        {
+          "id": "c27b4eb6-19dc-43f7-b4fc-64100732b0a3",
+          "prompt": "What should an event report highlight?",
+          "options": [
+            "What went well, what went wrong and what needs follow-up",
+            "Only what went well",
+            "Only the weather",
+            "Only the guest list"
+          ],
+          "correct_index": 0
+        },
+        {
+          "id": "94f559f2-13ef-4d7a-bf1e-6ecc13d74258",
+          "prompt": "Why keep records up to date?",
+          "options": [
+            "They are never used",
+            "Out-of-date records mislead people and cause mistakes",
+            "To increase file size",
+            "To impress guests"
+          ],
+          "correct_index": 1
+        }
+      ]
+    },
+    {
+      "id": "16791539-d92e-4f02-b611-7d249c6d69a1",
+      "title": "Leading a crew during an event",
+      "level": 5,
+      "summary": "SAMPLE – review before use. Briefing, assigning roles, keeping the crew calm and making decisions in real time.",
+      "equipment_id": null,
+      "videos": [],
+      "skills": [
+        {
+          "id": "755fec6d-23fb-458d-9d40-575df5b76aeb",
+          "name": "Gives a clear pre-event briefing covering roles, plan and contingencies"
+        },
+        {
+          "id": "fe4935a9-c8b8-4067-ab62-a1afd857a662",
+          "name": "Assigns tasks according to the skill level of each crew member"
+        },
+        {
+          "id": "ea971a8e-8faa-44e7-a0f0-474db1c5b560",
+          "name": "Keeps a calm communication tone during problems"
+        },
+        {
+          "id": "75f6837d-167a-4d6f-8f5c-615b52d7dcff",
+          "name": "Makes and communicates a clear decision when options are uncertain"
+        },
+        {
+          "id": "685a593a-5030-4852-86c4-f4ca407e6db0",
+          "name": "Leads a short review after the event"
+        }
+      ],
+      "questions": [
+        {
+          "id": "72f68f5d-5f6e-42b5-bd76-c625084cadf6",
+          "prompt": "What should a good briefing cover?",
+          "options": [
+            "Only the start time",
+            "Roles, the plan and what to do if something goes wrong",
+            "Only who is in charge",
+            "Nothing, people will know"
+          ],
+          "correct_index": 1
+        },
+        {
+          "id": "59e4c1dc-fb3a-4886-8177-f8574ab82c29",
+          "prompt": "How should tasks be assigned?",
+          "options": [
+            "Randomly",
+            "All to the most senior person",
+            "According to the person's skill and supervision needs",
+            "To the person who speaks the most"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "db827819-ab78-4c9f-bd00-0f30e6961888",
+          "prompt": "A problem occurs during the event. How should a leader speak?",
+          "options": [
+            "Loudly and urgently to everyone",
+            "Not at all",
+            "Calmly, clearly and briefly",
+            "With long explanations"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "0b2781dc-15dc-40c3-8f3c-bba44876a45d",
+          "prompt": "Why hold a short review after an event?",
+          "options": [
+            "To learn what to keep and what to change",
+            "To assign blame",
+            "To delay packing away",
+            "It is rarely useful"
+          ],
+          "correct_index": 0
+        },
+        {
+          "id": "e62eac69-80ff-4f17-9546-d3f734462b5f",
+          "prompt": "A decision has to be made without full information. What is a sensible approach?",
+          "options": [
+            "Choose the safest workable option and tell the crew why",
+            "Delay until all information exists",
+            "Let the crew vote on every choice",
+            "Avoid making any decision"
+          ],
+          "correct_index": 0
+        }
+      ]
+    },
+    {
+      "id": "a162b9cf-2611-4301-902f-2558f281be3a",
+      "title": "Coaching and assessing a trainee",
+      "level": 5,
+      "summary": "SAMPLE – review before use. Teaching a skill, observing fairly, giving useful feedback and recording evidence.",
+      "equipment_id": null,
+      "videos": [],
+      "skills": [
+        {
+          "id": "ac708404-2717-4a99-bffd-eb18a7ad375b",
+          "name": "Demonstrates a skill step by step, then lets the trainee try"
+        },
+        {
+          "id": "35847e5f-cde3-483c-89c1-1642c609e190",
+          "name": "Observes a trainee practising without taking over unless safety requires"
+        },
+        {
+          "id": "704eb7eb-cbad-46a8-b0c6-6efea519806b",
+          "name": "Gives specific feedback that names what was done well and what to change"
+        },
+        {
+          "id": "ddf894a9-461a-4889-9975-804da1603fb7",
+          "name": "Scores the trainee against the rubric using what was actually observed"
+        },
+        {
+          "id": "b81b255d-c098-4a4d-b50f-994906fb153d",
+          "name": "Records a short note that describes the evidence for the score"
+        }
+      ],
+      "questions": [
+        {
+          "id": "98f5cb9a-487f-453f-add7-f22363cd7762",
+          "prompt": "What is a good way to teach a new skill?",
+          "options": [
+            "Describe it once and leave",
+            "Do it yourself every time",
+            "Show it, explain it, then let the trainee try with support",
+            "Let them work it out alone"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "ad3578ad-d4ad-47e2-aea0-791e63f25e4b",
+          "prompt": "When should an assessor step in during a practical?",
+          "options": [
+            "When there is a safety risk or the trainee asks for help",
+            "At the first small mistake",
+            "Never, even for safety",
+            "Whenever the assessor is bored"
+          ],
+          "correct_index": 0
+        },
+        {
+          "id": "beaf3937-9686-4d63-81a2-82139de0aaa1",
+          "prompt": "Which is the most useful feedback?",
+          "options": [
+            "A general \"well done\"",
+            "Specific comments about what was done and what to change",
+            "A comparison with other trainees",
+            "Silence"
+          ],
+          "correct_index": 1
+        },
+        {
+          "id": "e95dafd6-ea60-430e-8505-0554e77aca8a",
+          "prompt": "On what should a practical score be based?",
+          "options": [
+            "The trainee's personality",
+            "How long they have been on the team",
+            "What other people said",
+            "What the assessor actually observed in the task"
+          ],
+          "correct_index": 3
+        },
+        {
+          "id": "6a999446-af82-4404-b07c-0b0a12c58cfb",
+          "prompt": "Why write a short evidence note with a score?",
+          "options": [
+            "To fill space",
+            "Notes are never read",
+            "It makes the score higher",
+            "So the score can be understood and trusted later"
+          ],
+          "correct_index": 3
+        }
+      ]
+    },
+    {
+      "id": "8562e9a7-f44d-4fba-b681-4d85890d10f6",
+      "title": "Reviewing and improving the system",
+      "level": 5,
+      "summary": "SAMPLE – review before use. Looking at how the team and equipment are set up, spotting weak points and managing change safely.",
+      "equipment_id": null,
+      "videos": [],
+      "skills": [
+        {
+          "id": "8d825ef5-9c27-44b0-ae3c-09cd74c7fcaf",
+          "name": "Reviews a system diagram and identifies a single point of failure"
+        },
+        {
+          "id": "5650e0ff-d54d-416b-805a-e0212e942853",
+          "name": "Proposes a change with the reason, risks and a way to undo it"
+        },
+        {
+          "id": "48917316-698c-429c-a7c8-6786144e507b",
+          "name": "Tests a change outside a live event before using it live"
+        },
+        {
+          "id": "fd5a13bb-b51c-402e-a84e-611bc7879522",
+          "name": "Updates documentation and training material when something changes"
+        }
+      ],
+      "questions": [
+        {
+          "id": "339fe2a6-b91f-471f-aab7-29cffcfac74e",
+          "prompt": "What is a single point of failure?",
+          "options": [
+            "A part that is never used",
+            "One part whose failure would stop the whole system",
+            "The cheapest part",
+            "A part with a label"
+          ],
+          "correct_index": 1
+        },
+        {
+          "id": "79110082-0fbd-4d65-bdd5-6cc2402c0ac5",
+          "prompt": "Why include a way to undo a change?",
+          "options": [
+            "Changes never go wrong",
+            "So the team can return to a working state if the change goes badly",
+            "Undoing is only for beginners",
+            "It makes the change slower for no reason"
+          ],
+          "correct_index": 1
+        },
+        {
+          "id": "655711ce-585a-413f-a734-221766cd9d1a",
+          "prompt": "Where is it best to test a change first?",
+          "options": [
+            "During the busiest event",
+            "Only on the day it is needed",
+            "Outside a live event, in a safe setting",
+            "Nowhere"
+          ],
+          "correct_index": 2
+        },
+        {
+          "id": "c41f01d0-c170-4e6a-8017-a6f557b172cd",
+          "prompt": "When equipment or process changes, what else should change?",
+          "options": [
+            "Nothing",
+            "Documentation and training material",
+            "Only the budget",
+            "Only the room colour"
+          ],
+          "correct_index": 1
+        },
+        {
+          "id": "fe4dedf0-d8c0-4d80-9e59-602ee2be47a3",
+          "prompt": "Why explain the reason for a change to the team?",
+          "options": [
+            "To make meetings longer",
+            "So people understand and use it correctly",
+            "It is unnecessary",
+            "To avoid feedback"
+          ],
+          "correct_index": 1
+        }
+      ]
+    }
+  ]
+}

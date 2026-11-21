@@ -37,6 +37,27 @@ module.exports = function trainingRoutes(api, ctx) {
     };
   }
 
+
+  // PROTOTYPE: progress for EVERY module in six queries instead of ~7 per module (50 modules = 350 queries + 50 SHA-256 of the quiz).
+  function progressAll(userId) {
+    const mods = db.prepare('SELECT id,title,level,version FROM training_modules ORDER BY level,title').all();
+    const qrows = db.prepare('SELECT module_id,id,prompt,options,correct_index FROM quiz_questions ORDER BY rowid').all();
+    const byMod = new Map(); for (const q of qrows) { if (!byMod.has(q.module_id)) byMod.set(q.module_id, []); byMod.get(q.module_id).push({ id: q.id, prompt: q.prompt, options: q.options, correct_index: q.correct_index }); }
+    const hash = new Map(); const hashOf = mid => { if (!hash.has(mid)) hash.set(mid, crypto.createHash('sha256').update(JSON.stringify(byMod.get(mid) || [])).digest('hex')); return hash.get(mid); };
+    const bestRows = db.prepare('SELECT module_id, quiz_hash, MAX(score_pct) p FROM quiz_attempts WHERE user_id=? GROUP BY module_id, quiz_hash').all(userId);
+    const best = new Map(); for (const r of bestRows) if (r.quiz_hash === null || r.quiz_hash === hashOf(r.module_id)) best.set(r.module_id, Math.max(best.get(r.module_id) ?? -1, r.p));
+    const skillRows = db.prepare(`SELECT s.module_id, s.id skill_id, s.name, (SELECT score FROM practical_scores p WHERE p.trainee_id=? AND p.skill_id=s.id ORDER BY p.event_at DESC, p.rowid DESC LIMIT 1) score FROM practical_skills s ORDER BY s.rowid`).all(userId);
+    const sk = new Map(); for (const r of skillRows) { if (!sk.has(r.module_id)) sk.set(r.module_id, []); sk.get(r.module_id).push({ skill_id: r.skill_id, name: r.name, score: r.score }); }
+    const so = new Map(db.prepare('SELECT module_id,signed_by,created_at,module_version FROM signoffs WHERE rowid IN (SELECT MAX(rowid) FROM signoffs WHERE trainee_id=? GROUP BY module_id)').all(userId).map(r => [r.module_id, r]));
+    return mods.map(m => {
+      const b = best.has(m.id) ? best.get(m.id) : null, skills = sk.get(m.id) || [], s = so.get(m.id);
+      return { title: m.title, level: m.level, module_id: m.id,
+        written: { has_quiz: (byMod.get(m.id) || []).length > 0, best_pct: b, passed: b !== null && b >= PASS_PCT, pass_pct: PASS_PCT },
+        practical: { skills, pass_score: PASS_SKILL, has_skills: skills.length > 0, passed: skills.length > 0 && skills.every(x => x.score !== null && x.score >= PASS_SKILL) },
+        signed_off: s ? { by: s.signed_by, at: s.created_at, module_version: s.module_version, current_version: m.version, stale: s.module_version != null && m.version != null && s.module_version !== m.version } : null };
+    });
+  }
+
   api.get('/modules', 'any', async (_req, res) => res.json({ modules: db.prepare(
     `SELECT m.id,m.title,m.level,m.equipment_id,m.summary,m.status,m.version,
        (SELECT COUNT(*) FROM quiz_questions q WHERE q.module_id=m.id) questions,
@@ -213,8 +234,7 @@ module.exports = function trainingRoutes(api, ctx) {
   api.get('/progress/:userId', 'any', async (req, res) => {
     const uid = parse(id, req.params.userId);
     if (uid !== req.user.id && !req.permissions.has('progress.view_all')) throw new HttpError(403, 'FORBIDDEN', 'You can only view your own progress.');
-    const mods = db.prepare('SELECT id,title,level FROM training_modules ORDER BY level,title').all();
-    res.json({ progress: mods.map(m => ({ title: m.title, level: m.level, ...progress(uid, m.id) })) });
+    res.json({ progress: process.env.PROGRESS_ORIG ? db.prepare('SELECT id,title,level FROM training_modules ORDER BY level,title').all().map(m => ({ title: m.title, level: m.level, ...progress(uid, m.id) })) : progressAll(uid) });
   });
 
   // The matrix shows everyone's scores, so it follows "See everyone's training progress": without it you see only your own row.

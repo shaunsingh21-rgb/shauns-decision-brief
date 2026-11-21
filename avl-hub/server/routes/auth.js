@@ -46,8 +46,9 @@ module.exports = function authRoutes(api, ctx) {
     try { user = await auth.provider.authenticate(req, body); }
     catch (e) {
       if (e instanceof HttpError && ['INVALID_CREDENTIALS', 'ACCOUNT_LOCKED'].includes(e.code)) {
+        const known = !!db.prepare('SELECT 1 FROM users WHERE username=?').get(body.username);   // a typed name that is not an account (often a password) is never written down
         db.transaction(() => audit(req, e.code === 'ACCOUNT_LOCKED' ? 'auth.login_blocked_locked' : (e.extra.locked ? 'auth.lockout' : 'auth.login_failed'),
-          'user', null, { username: body.username }, { id: null, username: body.username }))();
+          'user', null, known ? { username: body.username } : { username_known: false }, { id: null, username: known ? body.username : '(unknown name)' }))();
       }
       throw e;
     }

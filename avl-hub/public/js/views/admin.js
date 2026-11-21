@@ -32,7 +32,12 @@ function peopleSection(users, roles, secret, redraw, act) {
   const rows = users.map(u => {
     const r = select([...assignable.map(x => [x.id, x.name]), ...(assignable.some(x => x.id === u.role) ? [] : [[u.role, u.role_name]])], u.role);
     r.setAttribute('aria-label', `Role for ${u.username}`); r.disabled = !u.can_manage;
-    r.addEventListener('change', act(() => patch(`/users/${u.id}`, { role: r.value })));
+    const saveRole = act(() => patch(`/users/${u.id}`, { role: r.value }));
+    // A select fires 'change' on a single arrow key, so a role is never saved without an explicit OK (and the old role comes back on Cancel).
+    r.addEventListener('change', () => {
+      const chosen = r.options[r.selectedIndex].textContent;
+      if (r.value !== u.role && confirm(`Change ${u.username}'s role to ${chosen}? Their access changes straight away and they are signed out everywhere.`)) saveRole(); else r.value = u.role;
+    });
     const status = [u.disabled ? 'Disabled' : (u.must_change_password ? 'Must change password' : 'Active'), u.mfa_enabled ? 'two-step on' : ''].filter(Boolean).join(' · ');
     return h('tr', {}, h('td', { 'data-label': 'Username' }, u.username), h('td', { 'data-label': 'Name' }, u.display_name), h('td', { 'data-label': 'Role' }, r),
       h('td', { 'data-label': 'Status' }, status, u.locked && h('div', { class: 'badge b-needs_review', role: 'status' }, `Locked out for about ${plural(u.locked_minutes, 'more minute')}`)),

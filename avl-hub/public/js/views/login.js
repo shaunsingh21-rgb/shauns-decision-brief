@@ -16,7 +16,7 @@ export function renderLogin(root, onAuth, notice) {
   } }, field('Username', user), field('Password', pass), err,
     h('p', {}, h('button', { class: 'primary', type: 'submit' }, 'Sign in')),
     h('p', { class: 'hint' }, 'Accounts are created by your team administrator. Forgot your password? Ask an administrator to reset it.'));
-  root.replaceChildren(h('main', { class: 'login', id: 'main' }, h('h1', {}, 'AVL Tech Hub'), h('p', { class: 'hint' }, 'ITS Events — Training & Equipment'), form));
+  document.title = 'Sign in – AVL Tech Hub'; root.replaceChildren(h('main', { class: 'login', id: 'main' }, h('h1', {}, 'AVL Tech Hub'), h('p', { class: 'hint' }, 'ITS Events — Training & Equipment'), form));
   user.focus();
 }
 
@@ -39,7 +39,7 @@ function codeStep(root, challenge, onAuth) {
       err.replaceChildren(h('div', { class: 'notice bad' }, errMsg(x))); input.value = ''; input.focus();
     }
   } }, lbl, input, hint, err, h('div', { class: 'row' }, h('button', { class: 'primary', type: 'submit' }, 'Sign in'), toggle, h('button', { type: 'button', onclick: () => renderLogin(root, onAuth) }, 'Back')));
-  root.replaceChildren(h('main', { class: 'login', id: 'main' }, h('h1', {}, 'Two-step sign-in'), form)); input.focus();
+  document.title = 'Two-step code – AVL Tech Hub'; root.replaceChildren(h('main', { class: 'login', id: 'main' }, h('h1', {}, 'Two-step sign-in'), form)); input.focus();
 }
 
 export function renderChange(root, onAuth) {
@@ -47,7 +47,7 @@ export function renderChange(root, onAuth) {
   const cur = h('input', { type: 'password', autocomplete: 'current-password', required: true });
   const n1 = h('input', { type: 'password', autocomplete: 'new-password', required: true, minlength: 12 });
   const n2 = h('input', { type: 'password', autocomplete: 'new-password', required: true });
-  root.append(h('main', { class: 'login', id: 'main' }, h('h1', {}, 'Choose a new password'),
+  document.title = 'Choose a new password – AVL Tech Hub'; root.append(h('main', { class: 'login', id: 'main' }, h('h1', {}, 'Choose a new password'),
     h('div', { class: 'notice' }, 'For security, you must set your own password before continuing.'),
     h('form', { class: 'card', onsubmit: async e => {
       e.preventDefault(); err.replaceChildren();

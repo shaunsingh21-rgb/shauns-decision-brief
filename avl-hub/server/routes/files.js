@@ -35,7 +35,7 @@ module.exports = function fileRoutes(api, ctx) {
     storage: multer.diskStorage({ destination: tmpDir, filename: (_r, _f, cb) => cb(null, crypto.randomUUID()) }),
     limits: { fileSize: limits[k] * 1048576, files: 1, fields: 4, parts: 6 },
   }).single('file')]));
-  const receive = (req, res, next) => (uploaders[req.query.purpose] || ((_q, _s, cb) => cb(new HttpError(400, 'BAD_PURPOSE', 'Say what is being uploaded: photo, document or video.'))))(req, res, e => {
+  const receive = (req, res, next) => (Object.hasOwn(uploaders, String(req.query.purpose)) && uploaders[req.query.purpose] || ((_q, _s, cb) => cb(new HttpError(400, 'BAD_PURPOSE', 'Say what is being uploaded: photo, document or video.'))))(req, res, e => {
     if (e instanceof HttpError) return next(e);
     if (!e) return next();
     if (e.code === 'LIMIT_FILE_SIZE') return next(new HttpError(413, 'TOO_LARGE', 'That file is too large.'));

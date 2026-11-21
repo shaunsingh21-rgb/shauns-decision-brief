@@ -155,7 +155,7 @@ test('the audit log names who and what, supports paging, and the backup status i
 });
 
 test('the request limit is per PERSON (a team behind one office address does not share it), and successful sign-ins do not use up the sign-in allowance', async () => {
-  const h = await mk({ apiRateMax: 6, loginIpMax: 3 }); const a = await h.as(await h.makeUser('technician')), b = await h.as(await h.makeUser('technician'));
+  const h = await mk({ apiRateMax: 6, apiReadRateMax: 6, loginIpMax: 3 }); const a = await h.as(await h.makeUser('technician')), b = await h.as(await h.makeUser('technician'));
   for (let i = 0; i < 6; i++) assert.equal((await a.get('/api/me')).status, 200); assert.equal((await a.get('/api/me')).status, 429, 'person A used their allowance');
   assert.equal((await b.get('/api/me')).status, 200, 'person B, same address, is unaffected');
   const h2 = await mk({ loginIpMax: 3 }); const u = await h2.makeUser('technician', 'manylogins'); for (let i = 0; i < 6; i++) assert.equal((await h2.client().login(u)).status, 200, `sign-in ${i + 1}`);

@@ -7,6 +7,10 @@ const { listBackups } = require('./lib/backup');
 const { keyBuf } = require('../server/lib/totp');
 const c = loadConfig(); let bad = 0;
 const say = (lvl, msg) => { if (lvl === 'x') bad++; console.log(`${{ ok: '✔', warn: '⚠', x: '✖' }[lvl === 'x' ? 'x' : lvl]} ${msg}`); };
+{ const support = require('../server/lib/support'), envFile = process.env.ENV_FILE || path.join(__dirname, '..', '.env');
+  if (fs.existsSync(envFile)) { const probs = support.lintEnvText(fs.readFileSync(envFile, 'utf8')); probs.length ? probs.forEach(p => say('warn', `.env line ${p.line}: ${p.msg}`)) : say('ok', '.env file has no obvious typos');
+    if (fs.statSync(envFile).mode & 0o077) say('warn', `.env is readable by other users on this server (it holds keys). Run:  chmod 600 ${envFile}`); }
+  const b = support.buildInfo(); say('ok', `AVL Hub ${b.version} (commit ${b.commit})`); }
 const major = parseInt(process.versions.node, 10);
 major >= 20 ? say('ok', `Node ${process.versions.node}`) : say('x', `Node ${process.versions.node} is too old; version 20 or newer is required.`);
 say(c.production ? 'ok' : 'warn', c.production ? 'Running in production mode' : 'NODE_ENV is not "production" (cookies are not marked Secure). Fine for testing, not for the real server.');

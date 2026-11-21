@@ -20,7 +20,8 @@
     "restore": "node scripts/restore.js",
     "doctor": "node scripts/doctor.js",
     "reset-password": "node scripts/reset-password.js",
-    "reset-mfa": "node scripts/reset-mfa.js"
+    "reset-mfa": "node scripts/reset-mfa.js",
+    "support-bundle": "node scripts/support-bundle.js"
   },
   "dependencies": {
     "@tesseract.js-data/eng": "^1.0.0",

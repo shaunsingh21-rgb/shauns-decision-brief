@@ -1,5 +1,6 @@
 'use strict';
 const argon2 = require('argon2');
+const { ipKeyGenerator } = require('express-rate-limit');
 const { HttpError } = require('../lib/errors');
 
 // Sign-in lockout, designed so that guessing is slow but a stranger cannot lock people out:
@@ -8,18 +9,26 @@ const { HttpError } = require('../lib/errors');
 //  * a higher per-username ceiling ("all:" key, LOCKOUT_GLOBAL_FAILURES) still stops a guesser who uses many addresses;
 //  * the counter is only cleared when sign-in is COMPLETE (after the second step, if there is one), so authenticator codes cannot be guessed
 //    by interleaving them with correct passwords.
+// PROTOTYPE: at most 2 password checks at once, so the 4-thread libuv pool always has free threads for file reads (static files, photos, uploads).
+const MAX_HASHING = parseInt(process.env.ARGON_CONCURRENCY || '2', 10); let hashing = 0; const waiting = [];
+const slot = async () => { if (hashing >= MAX_HASHING) await new Promise(r => waiting.push(r)); hashing++; };
+const release = () => { hashing--; const n = waiting.shift(); if (n) n(); };
+const limited = async fn => { await slot(); try { return await fn(); } finally { release(); } };
 module.exports = function localProvider({ db, config }) {
   const opts = { type: argon2.argon2id, ...(config.argon || {}) };
   let dummy;
   const dummyHash = () => (dummy ||= argon2.hash('timing-equaliser-not-a-password', opts));
   const nowIso = () => new Date().toISOString();
   const norm = u => String(u).toLowerCase();
-  const keys = (username, ip) => [{ key: `ip:${norm(username)}|${ip || ''}`, max: config.lockoutMaxFailures }, { key: `all:${norm(username)}`, max: config.lockoutGlobalFailures }];
+  const addr = ip => { try { return ipKeyGenerator(ip || '', 64); } catch { return ip || ''; } };   // an IPv6 user owns a whole /64, so rotating inside it does not dodge the per-address lock
+  const keys = (username, ip) => [{ key: `ip:${norm(username)}|${addr(ip)}`, max: config.lockoutMaxFailures }, { key: `all:${norm(username)}`, max: config.lockoutGlobalFailures }];
   const minsLeft = row => Math.max(1, Math.ceil((Date.parse(row.locked_until) - Date.now()) / 60000));
 
   // A lock that has expired is removed, so the next try starts fresh.
   function live(key) {
     const row = db.prepare('SELECT * FROM login_failures WHERE key=?').get(key);
+    // Failures fade: an unlocked counter that has not moved for a lock period starts again from zero (so honest typos never add up for ever).
+    if (row && !row.locked_until && Date.parse(row.updated_at) <= Date.now() - config.lockoutMinutes * 60000) { db.prepare('DELETE FROM login_failures WHERE key=?').run(key); return null; }
     if (row && row.locked_until && Date.parse(row.locked_until) <= Date.now()) { db.prepare('DELETE FROM login_failures WHERE key=?').run(key); return null; }
     return row || null;
   }
@@ -46,8 +55,8 @@ module.exports = function localProvider({ db, config }) {
       const [perIp, all] = keys(username, ip);
       db.transaction(() => {
         db.prepare('DELETE FROM login_failures WHERE key=?').run(perIp.key);
-        const row = db.prepare('SELECT count FROM login_failures WHERE key=?').get(all.key);
-        if (row) { if (row.count <= 1) db.prepare('DELETE FROM login_failures WHERE key=?').run(all.key); else db.prepare('UPDATE login_failures SET count=count-1 WHERE key=?').run(all.key); }
+        const row = db.prepare('SELECT locked_until FROM login_failures WHERE key=?').get(all.key);
+        if (row && !row.locked_until) db.prepare('DELETE FROM login_failures WHERE key=?').run(all.key);   // a correct, complete sign-in ends the run of typos; an active lock is left alone
       })();
     },
     // Admin unlock / password reset: clears every key for that username (all addresses).
@@ -65,11 +74,13 @@ module.exports = function localProvider({ db, config }) {
       const lock = lockedRow(username, ip);
       if (lock) throw lockError(lock);
       // Count this attempt NOW (before the slow hash). Over the limit: refuse without even checking the password.
-      if (keys(username, ip).map(k => reserve(k.key, k.max)).some(r => r.over)) throw lockError(lockedRow(username, ip));
+      // The per-address counter goes first; an address that is already over its limit does not also push up the all-addresses counter (so one noisy address cannot lock everyone out).
+      const [perIp, all] = keys(username, ip);
+      if (reserve(perIp.key, perIp.max).over || reserve(all.key, all.max).over) throw lockError(lockedRow(username, ip));
       const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
       let ok = false;
-      if (user && user.auth_provider === 'local' && user.password_hash && !user.disabled) ok = await argon2.verify(user.password_hash, password);
-      else await argon2.verify(await dummyHash(), password);                       // keep timing similar for unknown users
+      if (user && user.auth_provider === 'local' && user.password_hash && !user.disabled) ok = await limited(() => argon2.verify(user.password_hash, password));
+      else await limited(async () => argon2.verify(await dummyHash(), password));                       // keep timing similar for unknown users
       if (!ok) { const locked = keys(username, ip).map(k => lockIfAtMax(k.key, k.max)).some(Boolean); throw new HttpError(401, 'INVALID_CREDENTIALS', 'Invalid username or password.', { locked }); }
       // A correct password during a burst that has since locked the account is still refused.
       const after = lockedRow(username, ip); if (after) throw lockError(after);
